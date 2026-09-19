@@ -48,6 +48,32 @@ export default function About() {
           Hydian is made by <a href={SITE.github}>SithCult</a>, Star Wars fans who roleplay in The Old Republic. The
           code is open source under the MIT licence.
         </p>
+        <div className={s.photos}>
+          <figure>
+            <img
+              src="/photos/plaza.webp"
+              srcSet="/photos/plaza-800.webp 800w, /photos/plaza.webp 1600w"
+              sizes="(max-width: 720px) 100vw, 720px"
+              width={1600}
+              height={900}
+              alt="Guild members walking across a plaza on Dromund Kaas, nameplates showing"
+              loading="lazy"
+              decoding="async"
+            />
+            <figcaption>Dromund Kaas, guild night.</figcaption>
+          </figure>
+          <figure>
+            <img
+              src="/photos/ilum-overview.webp"
+              width={800}
+              height={600}
+              alt="Dozens of characters lined up in the snow on Ilum, seen from a balcony"
+              loading="lazy"
+              decoding="async"
+            />
+            <figcaption>Ilum, years ago. The screenshot is as old as the memory.</figcaption>
+          </figure>
+        </div>
         <p>
           Hydian is a fan project, not affiliated with Electronic Arts, BioWare, Broadsword or Lucasfilm. Star Wars: The
           Old Republic and related marks belong to their owners.

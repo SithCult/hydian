@@ -27,3 +27,43 @@
   font-size: 20px;
   color: #fff;
 }
+
+.photo {
+  position: relative;
+  margin: 44px 0 0;
+  border-radius: 20px;
+  overflow: hidden;
+  border: 1px solid var(--line-soft);
+  box-shadow: 0 40px 90px -40px rgba(0, 0, 0, 0.9);
+}
+.photo img {
+  display: block;
+  width: 100%;
+  height: auto;
+  filter: saturate(0.92) contrast(1.04);
+}
+.photo::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(6, 9, 26, 0.05), rgba(6, 9, 26, 0.55) 100%);
+  pointer-events: none;
+}
+.photo .cap {
+  position: absolute;
+  left: 22px;
+  bottom: 18px;
+  z-index: 1;
+  margin: 0;
+  font-family: var(--font-hud);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+}
+@media (max-width: 640px) {
+  .photo {
+    margin-top: 28px;
+    border-radius: 14px;
+  }
+}
