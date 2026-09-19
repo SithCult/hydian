@@ -1,11 +1,10 @@
-// Hydian's entire native surface: three read-only file commands.
+// Game file access uses three read-only commands.
 //
 //  * fs_read_dir  - names in a folder (no per-file stat)
 //  * fs_stat      - size + mtime of one file
 //  * fs_read      - a byte range of one file, returned as raw bytes (zero-copy IPC)
 //
-// There is no write command anywhere in this binary. Reads are additionally
-// restricted to the two file kinds the app understands (combat logs, .ini),
+// Reads are restricted to the two file kinds the app understands (combat logs, .ini),
 // so even a wrong folder pick cannot read arbitrary files.
 use std::{
     fs::File,
@@ -21,6 +20,21 @@ use tauri::{
 
 use serde::Serialize;
 use tauri::ipc::Response;
+
+#[cfg(target_os = "macos")]
+mod autostart;
+
+#[tauri::command]
+fn autostart_enable(app: tauri::AppHandle) -> Result<(), String> {
+    #[cfg(target_os = "macos")]
+    return autostart::enable(&app).map_err(|e| e.to_string());
+
+    #[cfg(not(target_os = "macos"))]
+    {
+        use tauri_plugin_autostart::ManagerExt;
+        app.autolaunch().enable().map_err(|e| e.to_string())
+    }
+}
 
 #[derive(Serialize)]
 struct Entry {
@@ -233,9 +247,14 @@ pub fn run() {
             fs_stat,
             fs_read,
             launched_minimized,
-            is_game_running
+            is_game_running,
+            autostart_enable
         ])
         .setup(|app| {
+            #[cfg(all(target_os = "macos", not(debug_assertions)))]
+            if let Err(e) = autostart::migrate(app.handle()) {
+                eprintln!("Could not associate the login item with Hydian: {e}");
+            }
             // Hydian lives in the tray like a chat client: closing the window hides it, Quit is in the tray menu.
             let open = MenuItem::with_id(app, "open", "Open Hydian", true, None::<&str>)?;
             let overlay = MenuItem::with_id(app, "overlay", "Toggle overlay", true, None::<&str>)?;

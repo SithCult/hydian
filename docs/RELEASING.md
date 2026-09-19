@@ -45,7 +45,7 @@ Actions are pinned to commits. Credentials are scoped to the steps that need the
 
 ## Apple setup
 
-An existing Kanbon organization membership can sign Hydian if the organization authorizes distribution. Use its **Developer ID Application** certificate and private key, with a dedicated App Store Connect **team API key** using the **Developer** role for notarization. Apple team keys cover all apps in the team; use a dedicated key for this repository so its use can be audited and revoked separately. The workflow writes its private key to an owner-only temporary file and removes it after bundling. Tauri signs, notarizes and staples the app, then creates and signs the DMG. The workflow verifies the app signature, expected team, stapled ticket and Gatekeeper assessment, plus the DMG signature.
+Use an Apple Developer Program organization membership authorized to distribute Hydian. Use its **Developer ID Application** certificate and private key, with a dedicated App Store Connect **team API key** using the **Developer** role for notarization. Apple team keys cover all apps in the team; use a dedicated key for this repository so its use can be audited and revoked separately. The workflow writes its private key to an owner-only temporary file and removes it after bundling. Tauri signs, notarizes and staples the app, then creates and signs the DMG. The workflow verifies the app signature, expected team, stapled ticket and Gatekeeper assessment, plus the DMG signature.
 
 The publisher's organization name and team identifier are visible in signed software. An individual membership identifies the individual. Apple Developer Program membership is normally US$99/year or local equivalent, shared across the team's apps.
 

@@ -16,9 +16,13 @@ export async function autostartEnabled(): Promise<boolean> {
 }
 export async function setAutostart(on: boolean): Promise<void> {
   if (!isTauri()) return;
-  const m = await import("@tauri-apps/plugin-autostart");
-  if (on) await m.enable();
-  else await m.disable();
+  if (on) {
+    const { invoke } = await import("@tauri-apps/api/core");
+    await invoke("autostart_enable");
+  } else {
+    const { disable } = await import("@tauri-apps/plugin-autostart");
+    await disable();
+  }
 }
 /** First run: register for launch at login (default on). Later runs leave the user's choice alone. */
 export async function initAutostart(): Promise<string | null> {
