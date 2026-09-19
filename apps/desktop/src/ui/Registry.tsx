@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { PLANETS, planetById, planetForArea } from "../data/planets";
-import { notePreview } from "../core/notes";
+import { noteKeyByName, notePreview } from "../core/notes";
 import { locate } from "../data/maps";
 import { SERVER_NAMES } from "../core/gamelink";
 import { STATUS_META, LFRP_COLOR, hueOf, presenceOf, type Player, type RPStatus } from "../model";
@@ -158,7 +158,8 @@ export function Registry() {
   const friends = useApp((s) => s.friends);
   const met = useApp((s) => s.met);
   const notes = useApp((s) => s.notes);
-  const noteOf = (r: Row) => notePreview(notes[r.key]);
+  // imported in-game notes are keyed by name until the person's id is known; read them either way
+  const noteOf = (r: Row) => notePreview(notes[r.key] ?? notes[noteKeyByName(r.server, r.name)]);
   const openModal = useApp((s) => s.openModal);
   const selectPlanet = useApp((s) => s.selectPlanet);
   const search = useApp((s) => s.search)
