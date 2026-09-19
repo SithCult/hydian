@@ -1,0 +1,31 @@
+name: Bug report
+description: Something does not work as described
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What did you do, what did you expect, what happened instead. Redact other players' names.
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Hydian version
+      placeholder: Settings › About
+    validations:
+      required: true
+  - type: dropdown
+    id: where
+    attributes:
+      label: Where
+      options: [Desktop app, In-game overlay, Website, Backend]
+    validations:
+      required: true
+  - type: textarea
+    id: log
+    attributes:
+      label: Anything from the log or the console?
+      description: Settings › Game link shows what the app is reading. Paste relevant lines here, redacted.
+      render: text

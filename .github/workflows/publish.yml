@@ -1,0 +1,78 @@
+name: Publish downloads
+
+# When a release is published, its installers go to the download bucket behind dl.hydian.org, so the website
+# and the in-app updater hand out files from hydian.org. Stable names under latest/, a copy under the version,
+# the updater manifest (latest.json, rewritten to point at the bucket) and a small manifest the download page
+# reads for version, date and sizes.
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag to publish (v0.2.0)
+        required: true
+
+env:
+  BUCKET: hydian-downloads
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Download release assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.event.release.tag_name || inputs.tag }}
+        run: |
+          set -eu
+          mkdir -p out/latest "out/$TAG"
+          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --dir assets
+          ls -la assets
+          cp assets/*_x64-setup.exe out/latest/Hydian-Setup.exe
+          cp assets/*_aarch64.dmg   out/latest/Hydian-AppleSilicon.dmg
+          cp assets/*_x64.dmg       out/latest/Hydian-Intel.dmg
+          cp out/latest/* "out/$TAG/"
+          # updater artefacts keep their names; latest.json points at the bucket instead of GitHub
+          cp assets/*.sig assets/*.tar.gz "out/$TAG/" 2>/dev/null || true
+          cp assets/*_x64-setup.exe "out/$TAG/"
+          sed "s#https://github.com/$GITHUB_REPOSITORY/releases/download/$TAG/#https://dl.hydian.org/$TAG/#g" \
+            assets/latest.json > out/latest/latest.json
+          size() { stat -c %s "$1"; }
+          DATE=$(date -u +%Y-%m-%d)
+          cat > out/latest/releases.json <<EOF
+          {
+            "version": "${TAG#v}",
+            "tag": "$TAG",
+            "date": "$DATE",
+            "notes": "https://github.com/$GITHUB_REPOSITORY/releases/tag/$TAG",
+            "files": {
+              "windows":      { "path": "latest/Hydian-Setup.exe",        "size": $(size out/latest/Hydian-Setup.exe) },
+              "macArm":       { "path": "latest/Hydian-AppleSilicon.dmg", "size": $(size out/latest/Hydian-AppleSilicon.dmg) },
+              "macIntel":     { "path": "latest/Hydian-Intel.dmg",        "size": $(size out/latest/Hydian-Intel.dmg) }
+            }
+          }
+          EOF
+          cat out/latest/releases.json
+
+      - name: Upload to R2
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: auto
+          ENDPOINT: https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com
+          TAG: ${{ github.event.release.tag_name || inputs.tag }}
+        run: |
+          set -eu
+          # versioned copies never change
+          aws s3 cp "out/$TAG" "s3://$BUCKET/$TAG" --recursive --endpoint-url "$ENDPOINT" \
+            --cache-control "public, max-age=31536000, immutable"
+          # latest/ is what the website links; short cache so a new release shows up within minutes
+          aws s3 cp out/latest "s3://$BUCKET/latest" --recursive --endpoint-url "$ENDPOINT" \
+            --cache-control "public, max-age=300" --exclude "*.json"
+          for f in releases.json latest.json; do
+            aws s3 cp "out/latest/$f" "s3://$BUCKET/latest/$f" --endpoint-url "$ENDPOINT" \
+              --cache-control "public, max-age=300" --content-type "application/json"
+          done

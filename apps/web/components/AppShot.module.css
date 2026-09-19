@@ -1,0 +1,80 @@
+.wrap {
+  position: relative;
+  max-width: 1160px;
+  margin: 0 auto;
+  padding: 0 var(--gutter) 72px;
+  perspective: 1600px;
+}
+/* home: overlaps the hero's bottom, which leaves room for it (see Hero.module.css) */
+.hero {
+  z-index: 2;
+  margin-top: clamp(-170px, -13vw, -70px);
+  scroll-margin-top: 84px;
+}
+.hero .frame {
+  cursor: pointer;
+}
+.tight {
+  margin: 48px auto 0;
+  padding-bottom: 0;
+}
+.glow {
+  position: absolute;
+  left: 10%;
+  right: 10%;
+  top: -10%;
+  height: 60%;
+  background: radial-gradient(ellipse at 50% 0%, color-mix(in srgb, var(--accent) 22%, transparent), transparent 65%);
+  filter: blur(30px);
+  pointer-events: none;
+}
+.frame {
+  position: relative;
+  transform-origin: 50% 0;
+  border-radius: 16px;
+  border: 1px solid var(--line);
+  background: #06091a;
+  overflow: hidden;
+  box-shadow:
+    0 60px 120px -40px rgba(0, 0, 0, 0.85),
+    0 0 0 1px rgba(233, 200, 122, 0.06),
+    0 0 90px -30px var(--holo-soft);
+}
+.frame::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.35), transparent);
+  z-index: 1;
+}
+.frame img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.caption {
+  margin: 18px 0 0;
+  text-align: center;
+  color: var(--ink-faint);
+  font-family: var(--font-hud);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+@media (max-width: 900px) {
+  .hero {
+    margin-top: -36px;
+  }
+}
+@media (max-width: 640px) {
+  .wrap {
+    padding-bottom: 40px;
+  }
+  .hero {
+    margin-top: -20px;
+  }
+  .frame {
+    border-radius: 10px;
+  }
+}

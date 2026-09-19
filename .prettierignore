@@ -1,0 +1,10 @@
+node_modules
+dist
+apps/desktop/src-tauri/target
+apps/desktop/src/data/maps.json
+apps/desktop/src/data/planet-icons.json
+pnpm-lock.yaml
+*.md
+apps/desktop/branding/
+apps/web/.next/
+apps/web/out/

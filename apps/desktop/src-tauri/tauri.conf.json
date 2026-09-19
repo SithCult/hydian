@@ -1,0 +1,94 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Hydian",
+  "version": "0.1.0",
+  "identifier": "org.hydian.desktop",
+  "build": {
+    "beforeDevCommand": "pnpm vite",
+    "devUrl": "http://localhost:1420",
+    "beforeBuildCommand": "pnpm build",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "Hydian",
+        "width": 1380,
+        "height": 860,
+        "minWidth": 900,
+        "minHeight": 600,
+        "theme": "Dark",
+        "backgroundColor": "#0a0c16",
+        "label": "main",
+        "titleBarStyle": "Overlay",
+        "hiddenTitle": true
+      },
+      {
+        "label": "overlay",
+        "url": "index.html?overlay=1",
+        "title": "Hydian overlay",
+        "width": 300,
+        "height": 220,
+        "minWidth": 180,
+        "minHeight": 80,
+        "transparent": true,
+        "decorations": false,
+        "shadow": false,
+        "alwaysOnTop": true,
+        "skipTaskbar": true,
+        "resizable": false,
+        "focus": false,
+        "visible": false,
+        "visibleOnAllWorkspaces": true,
+        "backgroundColor": "#00000000"
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; connect-src 'self' ipc: http://ipc.localhost https://api.hydian.org wss://api.hydian.org https://tiles.hydian.org https://*.up.railway.app wss://*.up.railway.app https://github.com https://objects.githubusercontent.com http://localhost:* http://127.0.0.1:* ws://localhost:*"
+    },
+    "macOSPrivateApi": true
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "category": "SocialNetworking",
+    "copyright": "\u00a9 2026 SithCult \u00b7 MIT",
+    "shortDescription": "Where roleplay is happening in SWTOR",
+    "longDescription": "Desktop companion for roleplay in Star Wars: The Old Republic: live map on the in-game maps, status, registry, friends and a journal.",
+    "icon": ["icons/32x32.png", "icons/128x128.png", "icons/128x128@2x.png", "icons/icon.icns", "icons/icon.ico"],
+    "windows": {
+      "nsis": {
+        "installMode": "currentUser",
+        "languages": ["English"]
+      }
+    },
+    "macOS": {
+      "minimumSystemVersion": "12.0",
+      "signingIdentity": "-",
+      "dmg": {
+        "windowSize": {
+          "width": 640,
+          "height": 420
+        },
+        "appPosition": {
+          "x": 160,
+          "y": 200
+        },
+        "applicationFolderPosition": {
+          "x": 480,
+          "y": 200
+        }
+      }
+    },
+    "createUpdaterArtifacts": true
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDc2NTA4MjBGNjk2MjVFQjUKUldTMVhtSnBENEpRZHMxNSsvUC9CcUc2V1FYTG1KR0V1cEtvcVZJUkxLNm53c2JkUy9LSktxRHQK",
+      "endpoints": [
+        "https://dl.hydian.org/latest/latest.json",
+        "https://github.com/SithCult/hydian/releases/latest/download/latest.json"
+      ]
+    }
+  }
+}

@@ -1,0 +1,148 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ---------------------------------------------------------------- web side: types, lint, format, bundles
+  check:
+    name: typecheck · lint · format
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck
+      - run: pnpm lint
+      - run: pnpm format:check
+      - run: pnpm -F @hydian/web build
+      - name: API boots and registers its routes
+        # no database on the runner: a clean exit at the migration step proves the module graph and route wiring
+        run: |
+          set +e
+          DATABASE_URL=postgres://x:y@127.0.0.1:1/z timeout 20 node --experimental-strip-types src/index.ts > boot.log 2>&1
+          grep -q "ECONNREFUSED" boot.log && echo "routes registered, failed at migrate() as expected" || { cat boot.log; exit 1; }
+        working-directory: apps/api
+
+  # ---------------------------------------------------------------- the app: every platform, every push
+  desktop:
+    name: ${{ matrix.name }}
+    needs: check
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Windows x64
+            os: windows-latest
+            target: x86_64-pc-windows-msvc
+            bundles: nsis
+            ext: exe
+          - name: macOS Apple Silicon
+            os: macos-latest
+            target: aarch64-apple-darwin
+            bundles: dmg
+            ext: dmg
+          - name: macOS Intel
+            os: macos-15-intel
+            target: x86_64-apple-darwin
+            bundles: dmg
+            ext: dmg
+    runs-on: ${{ matrix.os }}
+    env:
+      CARGO_TERM_COLOR: always
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: apps/desktop/src-tauri -> target
+          key: ${{ matrix.target }}
+      - run: pnpm install --frozen-lockfile
+
+      - name: rustfmt
+        run: cargo fmt --check
+        working-directory: apps/desktop/src-tauri
+      - name: clippy (warnings are errors)
+        run: cargo clippy --locked --target ${{ matrix.target }} -- -D warnings
+        working-directory: apps/desktop/src-tauri
+
+      - name: Build the installer
+        # plain installers: updater artifacts (and the signing key) are only needed by the release workflow
+        shell: bash
+        run: >
+          pnpm -F @hydian/desktop tauri build --ci --target ${{ matrix.target }} --bundles ${{ matrix.bundles }}
+          --config '{"bundle":{"createUpdaterArtifacts":false}}'
+        env:
+          APPLE_SIGNING_IDENTITY: "-"
+
+      - name: Collect
+        shell: bash
+        run: |
+          mkdir -p out
+          find apps/desktop/src-tauri/target/${{ matrix.target }}/release/bundle -type f -name "*.${{ matrix.ext }}" -exec cp {} out/ \;
+          ls -la out
+      - uses: actions/upload-artifact@v4
+        with:
+          name: hydian-${{ matrix.target }}
+          path: out/*
+          retention-days: 14
+          if-no-files-found: error
+
+      - name: Report sizes
+        shell: bash
+        run: |
+          {
+            echo "### ${{ matrix.name }}"
+            echo
+            echo "| Installer | Size |"
+            echo "|---|---|"
+            for f in out/*; do echo "| $(basename "$f") | $(du -h "$f" | cut -f1) |"; done
+            bin=$(find apps/desktop/src-tauri/target/${{ matrix.target }}/release -maxdepth 1 -type f \( -name hydian -o -name hydian.exe \) | head -1)
+            [ -n "$bin" ] && echo "| binary $(basename "$bin") | $(du -h "$bin" | cut -f1) |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  # ---------------------------------------------------------------- rolling pre-release from main
+  nightly:
+    name: nightly pre-release
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: desktop
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Move the nightly tag to this commit
+        run: |
+          git tag -f nightly
+          git push -f origin nightly
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: nightly
+          name: Nightly (${{ github.sha }})
+          prerelease: true
+          body: |
+            Built from `main` at ${{ github.sha }}. Unstable by definition; use a tagged release unless you want to test.
+          files: dist/*
