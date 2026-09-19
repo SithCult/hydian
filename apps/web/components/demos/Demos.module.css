@@ -200,9 +200,12 @@
   border-radius: 14px;
   position: relative;
   overflow: hidden;
+  /* the blobs stay on top of a faded in-game scene, so the overlay sits over something like the real thing */
   background:
     radial-gradient(ellipse at 20% 80%, rgba(240, 178, 50, 0.22), transparent 50%),
-    radial-gradient(ellipse at 80% 20%, var(--holo-soft), transparent 50%), #090c18;
+    radial-gradient(ellipse at 80% 20%, var(--holo-soft), transparent 50%),
+    linear-gradient(rgba(9, 12, 24, 0.72), rgba(9, 12, 24, 0.72)),
+    url("/photos/ilum-duel.webp") center / cover no-repeat #090c18;
 }
 .game::before {
   content: "";
