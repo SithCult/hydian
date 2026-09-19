@@ -1,0 +1,29 @@
+.wrap {
+  max-width: 1160px;
+  margin: 0 auto;
+  padding: 24px var(--gutter) 88px;
+}
+.copy {
+  max-width: 720px;
+}
+.copy h2 {
+  margin: 0 0 22px;
+}
+.copy p {
+  margin: 0 0 16px;
+  font-size: 18px;
+  line-height: 1.65;
+  color: var(--ink-muted);
+}
+.copy .lead {
+  font-size: 21px;
+  line-height: 1.55;
+  color: var(--ink);
+}
+.copy .last {
+  margin: 24px 0 0;
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 20px;
+  color: #fff;
+}

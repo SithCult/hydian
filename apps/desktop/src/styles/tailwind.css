@@ -1,0 +1,69 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+/* The app is dark only; `.dark` is set on <html> so shadcn's dark variants apply. */
+@custom-variant dark (&:is(.dark *));
+
+/*
+ * shadcn's theme, pointed at the app tokens in app.css. Note the name clash: shadcn's "accent" is a hover
+ * surface, ours (--accent) is the gold, so the gold becomes "primary" here and "accent" is the raised navy.
+ */
+@theme inline {
+  --font-sans: var(--font);
+  --font-heading: var(--font-display);
+  --font-mono: var(--mono);
+
+  --color-background: var(--bg-main);
+  --color-foreground: var(--text);
+  --color-card: var(--bg-raised);
+  --color-card-foreground: var(--text);
+  --color-popover: var(--bg-tooltip);
+  --color-popover-foreground: var(--text);
+  --color-primary: var(--accent);
+  --color-primary-foreground: #14110a;
+  --color-secondary: var(--bg-active);
+  --color-secondary-foreground: var(--text-strong);
+  --color-muted: var(--bg-hover);
+  --color-muted-foreground: var(--text-muted);
+  --color-accent: var(--bg-active);
+  --color-accent-foreground: var(--text-strong);
+  --color-destructive: var(--danger);
+  --color-border: var(--line);
+  --color-input: var(--line-soft);
+  --color-ring: var(--accent);
+  --color-holo: var(--holo);
+  --color-ok: var(--ok);
+  --color-faint: var(--text-faint);
+  --color-strong: var(--text-strong);
+  --color-rail: var(--bg-rail);
+  --color-side: var(--bg-side);
+  --color-raised: var(--bg-raised);
+
+  --radius-sm: 5px;
+  --radius-md: 6px;
+  --radius-lg: var(--radius);
+  --radius-xl: var(--radius-lg);
+  --radius-2xl: 18px;
+  --radius-3xl: 22px;
+  --radius-4xl: 26px;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+}
+
+/* the site's cut corners on filled buttons */
+@utility btn-cut {
+  clip-path: polygon(7px 0, 100% 0, 100% calc(100% - 7px), calc(100% - 7px) 100%, 0 100%, 0 7px);
+  border-radius: 0;
+}
+@utility font-display {
+  font-family: var(--font-display);
+}

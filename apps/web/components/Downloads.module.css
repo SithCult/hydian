@@ -1,0 +1,137 @@
+.wrap {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 72px var(--gutter) 96px;
+}
+.primary {
+  text-align: center;
+  padding: 56px 32px 48px;
+  border-radius: 24px;
+  border: 1px solid var(--line);
+  background:
+    radial-gradient(ellipse at 50% -20%, var(--accent-soft), transparent 60%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.04), transparent);
+}
+.logo {
+  display: grid;
+  place-items: center;
+  width: 84px;
+  height: 84px;
+  margin: 0 auto 22px;
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--line-soft);
+  color: #fff;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18);
+}
+.primary h1 {
+  font-size: clamp(38px, 5.6vw, 64px);
+  letter-spacing: -0.03em;
+  margin: 12px 0 14px;
+}
+.meta {
+  color: var(--ink-muted);
+  margin: 0 0 26px;
+}
+.meta b {
+  color: #fff;
+  font-family: var(--font-display);
+}
+.buttons {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+.size {
+  font-style: normal;
+  font-family: var(--font-hud);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  opacity: 0.6;
+  margin-left: 2px;
+}
+.note {
+  margin: 0;
+  color: var(--ink-faint);
+  font-size: 14px;
+}
+.others {
+  margin-top: 48px;
+}
+.others .hud {
+  margin-bottom: 14px;
+}
+.card {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 22px;
+  padding: 22px 26px;
+  border-radius: 18px;
+  border: 1px solid var(--line-soft);
+  background: var(--panel);
+  backdrop-filter: blur(8px);
+}
+.cardLogo {
+  display: grid;
+  place-items: center;
+  width: 60px;
+  height: 60px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.06);
+  color: #fff;
+}
+.cardBody h3 {
+  font-size: 20px;
+  margin: 0 0 4px;
+}
+.cardBody p {
+  margin: 0;
+  color: var(--ink-muted);
+  font-size: 14px;
+}
+.cardButtons {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.after {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 40px;
+  margin-top: 64px;
+  padding-top: 40px;
+  border-top: 1px solid var(--line-soft);
+}
+.after .hud {
+  margin-bottom: 12px;
+}
+.after ol,
+.after ul {
+  margin: 0;
+  padding-left: 20px;
+  color: var(--ink-muted);
+  font-size: 15px;
+  line-height: 1.6;
+}
+.after li {
+  margin-bottom: 8px;
+}
+@media (max-width: 760px) {
+  .card {
+    grid-template-columns: 1fr;
+    text-align: center;
+  }
+  .cardLogo {
+    margin: 0 auto;
+  }
+  .cardButtons {
+    justify-content: center;
+  }
+  .after {
+    grid-template-columns: 1fr;
+  }
+}

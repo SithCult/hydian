@@ -1,0 +1,29 @@
+# Hydian
+
+> Free, open-source desktop companion for roleplay in Star Wars: The Old Republic (SWTOR). It shows who is In Character where, on the game's own maps, down to the interior floor. Windows and macOS. No account.
+
+Hydian reads the combat log the game writes and the settings folder for character names. Sharing is per character and starts Invisible. For a shared character the app sends name, class, server, area, position and status while the player plays; others see the name, the place and the status. Notes and the journal stay on the device. Settings › Privacy deletes what a device sent.
+
+## Pages
+
+- [Home](https://hydian.org/): features, data handling, roadmap, downloads
+- [Download](https://hydian.org/download): installers for Windows and macOS
+- [About](https://hydian.org/about): who makes it, contact addresses
+- [Privacy](https://hydian.org/privacy): what the app reads, sends, keeps and how to delete it
+
+## Features
+
+- Live map on the in-game artwork: planets, regions, every interior floor, 3D view of stacked floors
+- Status: In Character / Out of Character / Invisible, a Looking-for-RP beacon, server instance number
+- Registry of everyone sharing a character on a server; friends
+- Notes on characters (in-game notes imported) and a rich-text journal, stored locally
+- Heatmap and activity statistics
+- In-game overlay: transparent, click-through card over the game
+
+## Contact
+
+- General: hello@hydian.org
+- Legal: legal@hydian.org
+- Security: security@hydian.org
+
+Hydian is a fan project by SithCult, not affiliated with Electronic Arts, BioWare, Broadsword or Lucasfilm. Source: https://github.com/SithCult

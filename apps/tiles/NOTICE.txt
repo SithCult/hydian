@@ -1,0 +1,10 @@
+Hydian tiles service (tiles.hydian.org)
+
+The artwork served here (map tiles, planet icons, faction emblems) is extracted from Star Wars: The Old Republic
+and is the property of Electronic Arts Inc., BioWare, Broadsword Online Games Inc. and Lucasfilm Ltd. Star Wars
+and related marks are trademarks of Lucasfilm Ltd. and/or Electronic Arts Inc.
+
+It is served for use with Hydian, a free, non-commercial fan project by SithCult that is not affiliated with,
+endorsed by or connected to those companies. It is not licensed for any other use.
+
+Rights holders: legal@hydian.org

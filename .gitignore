@@ -1,0 +1,25 @@
+# dependencies / build output
+node_modules
+dist
+apps/web/.next
+apps/web/out
+apps/web/next-env.d.ts
+apps/desktop/src-tauri/target
+apps/desktop/src-tauri/gen
+
+# game artwork (BioWare/EA/Lucasfilm): never committed; the app loads it from the hosted tiles service
+apps/desktop/public/maps/
+apps/desktop/public/icons/planets/
+apps/desktop/public/icons/faction/
+
+# build caches
+apps/web/tsconfig.tsbuildinfo
+
+# local editor / OS
+.claude/
+.DS_Store
+Thumbs.db
+
+# no mobile targets
+apps/desktop/src-tauri/icons/android/
+apps/desktop/src-tauri/icons/ios/

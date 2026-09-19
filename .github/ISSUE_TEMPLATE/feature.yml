@@ -1,0 +1,11 @@
+name: Feature request
+description: An idea for Hydian
+labels: [enhancement]
+body:
+  - type: textarea
+    id: idea
+    attributes:
+      label: The idea
+      description: What would it do, and which roleplay situation does it help with?
+    validations:
+      required: true
