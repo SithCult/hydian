@@ -92,7 +92,8 @@ export class Backfill {
     this.emit({ running: true, error: "" });
     try {
       for (;;) {
-        const files = (await listLogs(logsDir)).filter((f) => !(f in this.doneMap) || !(f in this.metFiles)).reverse(); // oldest first: the dataset grows forward in time
+        // newest first: the people and places that matter now show up in the first minutes, the old logs follow
+        const files = (await listLogs(logsDir)).filter((f) => !(f in this.doneMap) || !(f in this.metFiles));
         const doneCount = Object.values(this.doneMap).filter((v) => !v.startsWith("!")).length;
         const skipped = Object.values(this.doneMap).filter((v) => v.startsWith("!")).length;
         this.emit({ total: files.length + doneCount + skipped, done: doneCount, skipped });
