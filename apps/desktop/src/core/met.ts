@@ -49,11 +49,11 @@ export function foldFile(
       met[key] ??
       (met[key] = { name: s.name, server: s.server, times: 0, first: s.atMs, last: 0, areas: {}, lastArea: null });
     e.times++;
-    e.name = s.name;
     if (s.atMs < e.first) e.first = s.atMs;
     if (s.atMs >= e.last) {
       e.last = s.atMs;
       e.lastArea = s.areaId;
+      e.name = s.name; // the newest spelling wins, whatever order the files come in
     }
     if (s.areaId) {
       e.areas[s.areaId] = (e.areas[s.areaId] ?? 0) + 1;

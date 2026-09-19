@@ -338,7 +338,15 @@ export const useApp = create<AppState>((set, get) => ({
       (server, id) => (get().charStatus[`${server}:${id}`]?.status ?? "invisible") !== "invisible",
     );
     backfill.onState = () => set({ backfill: { ...backfill!.state } });
-    backfill.onMet = (met) => set({ met: { ...met } });
+    let metSync = 0;
+    backfill.onMet = (met) => {
+      set({ met: { ...met } });
+      // names from the in-game lists resolve to ids as the logs are read; look again now and then
+      if (Date.now() - metSync > 2_000) {
+        metSync = Date.now();
+        get().syncGameFriends();
+      }
+    };
     setTimeout(() => startBackfill(get), 20_000); // after the live link has settled
     // heartbeat while the game link is live (keeps presence alive through quiet RP)
     setInterval(() => {
@@ -768,6 +776,8 @@ export const useApp = create<AppState>((set, get) => ({
       seenNames.add(k);
       return true;
     });
+    // people on Hydian resolve through the registry of their server, not only the one on screen
+    for (const srv of new Set(gameNames.map((g) => g.server))) void get().loadRegistry(srv);
     const notes = { ...get().notes };
     const met = get().met;
     let added = 0;
