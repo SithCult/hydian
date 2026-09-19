@@ -4,7 +4,8 @@
   "description": "Core, folder-picker dialog, autostart, global shortcuts, and window control for the tray/overlay. File access is via three app commands that can only read combat logs and .ini files.",
   "windows": ["main", "overlay"],
   "permissions": [
-    "autostart:default",
+    "autostart:allow-disable",
+    "autostart:allow-is-enabled",
     "core:default",
     "core:webview:allow-set-webview-focus",
     "core:window:allow-available-monitors",

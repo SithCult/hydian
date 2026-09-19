@@ -1,6 +1,6 @@
 [package]
 name = "hydian"
-version = "0.1.5"
+version = "0.1.6"
 description = "Hydian. SWTOR roleplay companion (read-only game link)"
 edition = "2021"
 
@@ -21,6 +21,10 @@ tauri-plugin-process = "2"
 sysinfo = { version = "0.33", default-features = false, features = ["system"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+
+[target.'cfg(target_os = "macos")'.dependencies]
+plist = "1"
+tempfile = "3"
 
 [profile.release]
 codegen-units = 1
