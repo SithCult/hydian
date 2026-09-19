@@ -1,6 +1,5 @@
 "use client";
-// The download page: the visitor's OS first, the others below. The installers live behind dl.hydian.org under
-// stable names, so the buttons work without any request; the manifest next to them adds version, date and sizes.
+// Versioned downloads keep cached installers consistent with the displayed release.
 import { useEffect, useState } from "react";
 import { motion } from "motion/react";
 import { SITE } from "@/lib/site";
@@ -17,9 +16,9 @@ interface Release {
   files: Record<FileKey, { path: string; size: number }>;
 }
 const FILES: Record<FileKey, string> = {
-  windows: `${SITE.downloads}/latest/Hydian-Setup.exe`,
-  macArm: `${SITE.downloads}/latest/Hydian-AppleSilicon.dmg`,
-  macIntel: `${SITE.downloads}/latest/Hydian-Intel.dmg`,
+  windows: "Hydian-Setup.exe",
+  macArm: "Hydian-AppleSilicon.dmg",
+  macIntel: "Hydian-Intel.dmg",
 };
 
 const mb = (n?: number) => (n ? `${(n / 1048576).toFixed(0)} MB` : "");
@@ -41,21 +40,22 @@ const CARDS: Record<DesktopOs, { logo: React.ReactNode; name: string; req: strin
 
 function Buttons({ os, rel, primary }: { os: DesktopOs; rel: Release | null; primary: boolean }) {
   const cls = primary ? "btn primary" : "btn";
+  const href = (k: FileKey) => `${SITE.downloads}/${rel ? `v${rel.version}` : "latest"}/${FILES[k]}`;
   const size = (k: FileKey) => rel?.files?.[k] && <span className={s.size}>{mb(rel.files[k].size)}</span>;
   if (os === "windows")
     return (
-      <a className={cls} href={FILES.windows} download>
+      <a className={cls} href={href("windows")} download>
         <WindowsLogo /> Windows installer
         {size("windows")}
       </a>
     );
   return (
     <>
-      <a className={cls} href={FILES.macArm} download>
+      <a className={cls} href={href("macArm")} download>
         <AppleLogo /> Apple Silicon
         {size("macArm")}
       </a>
-      <a className="btn" href={FILES.macIntel} download>
+      <a className="btn" href={href("macIntel")} download>
         <AppleLogo /> Intel{size("macIntel")}
       </a>
     </>
