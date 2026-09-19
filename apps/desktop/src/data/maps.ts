@@ -223,11 +223,10 @@ export const pickFloor = (stack: MapTile[], gh: number | null): MapTile =>
 export const planetIcon = (slug: string): string | undefined => (ICONS[slug] ? ASSET_BASE + ICONS[slug] : undefined);
 /**
  * Where the in-game artwork (maps, icons) comes from. The images are BioWare/EA assets and are not
- * part of the repo or the installer: production builds load them from the hosted static service (long-lived
- * immutable cache headers, so the WebView keeps them on disk); dev uses public/ when the artwork is there.
+ * part of the repo or the installer: all builds load them from the hosted static service (long-lived
+ * immutable cache headers, so the WebView keeps them on disk).
  * Override with VITE_ASSET_BASE (e.g. "/" to bundle, or another host for a self-hosted instance).
  */
 export const ASSET_BASE: string =
-  (import.meta.env.VITE_ASSET_BASE as string | undefined) ??
-  (import.meta.env.DEV ? import.meta.env.BASE_URL : "https://tiles-production-d7fc.up.railway.app/");
+  (import.meta.env.VITE_ASSET_BASE as string | undefined) ?? "https://tiles.hydian.org/";
 export const assetUrl = (rel: string) => ASSET_BASE + rel;

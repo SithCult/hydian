@@ -54,6 +54,11 @@ export function leave(key: string) {
   broadcast(p.server, { type: "leave", key });
 }
 
+export function leaveInstall(installId: string) {
+  const normalized = installId.toLowerCase();
+  for (const [key, player] of presence) if (player.installId.toLowerCase() === normalized) leave(key);
+}
+
 /** Applies a stored batch to the live map. History and status-less pings never touch presence. */
 export function applyBatch(b: Batch) {
   const now = Date.now();
@@ -102,4 +107,4 @@ export function join(server: string, socket: WebSocket) {
 setInterval(() => {
   const cut = Date.now() - STALE_MS;
   for (const [k, p] of presence) if (p.lastActive < cut) leave(k);
-}, 60_000);
+}, 60_000).unref();

@@ -22,7 +22,7 @@ export async function setAutostart(on: boolean): Promise<void> {
 }
 /** First run: register for launch at login (default on). Later runs leave the user's choice alone. */
 export async function initAutostart(): Promise<string | null> {
-  if (!isTauri()) return null;
+  if (!isTauri() || import.meta.env.DEV) return null;
   try {
     if (localStorage.getItem(LS_INIT)) return null;
   } catch {

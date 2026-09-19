@@ -2,7 +2,7 @@
 
 > Free, open-source desktop companion for roleplay in Star Wars: The Old Republic (SWTOR). It shows who is In Character where, on the game's own maps, down to the interior floor. Windows and macOS. No account.
 
-Hydian reads the combat log the game writes and the settings folder for character names. Sharing is per character and starts Invisible. For a shared character the app sends name, class, server, area, position and status while the player plays; others see the name, the place and the status. Notes and the journal stay on the device. Settings › Privacy deletes what a device sent.
+Hydian reads the combat log the game writes and the settings folder for character names. Visibility is per character and starts Invisible. The app uploads gameplay updates and enabled history for shared characters, nearby-player sightings and friend connections. Friend connections can upload while own characters are Invisible. Notes and the journal stay on the device. Settings › Privacy removes installation links while retaining gameplay samples with replacement identifiers.
 
 ## Pages
 

@@ -181,28 +181,28 @@ function Essentials() {
     [
       Icons.book(),
       "Hydian reads two folders",
-      "The combat log the game writes, and the settings folder for character names.",
+      "Combat logs for characters and encounters, and game settings for character names, friends and notes.",
     ],
     [
       Icons.eyeOff(),
       "Every character starts Invisible",
       <>
-        Set one to <em>In Character</em> or <em>Out of Character</em> and its name, server, planet, position and status
-        are shared while you play, plus its older positions from your logs.
+        Set one to <em>In Character</em> or <em>Out of Character</em> to publish its status and location. Gameplay
+        updates and enabled log history are uploaded; friend connections can upload while you are Invisible.
       </>,
     ],
     [
       Icons.users(),
-      "Players near you show up too",
+      "Your log includes nearby players",
       <>
-        When your log mentions someone, their name and position are shared as well. They appear as{" "}
-        <em>Not on Hydian</em>: a name and a last-seen.
+        Sightings upload while your character is shared. The <em>Not on Hydian</em> pins on your map come from your own
+        local log.
       </>,
     ],
     [
       Icons.lock(),
       "No account",
-      "Others see a name, a status and a place. Notes and journal stay on this device. Settings › Privacy deletes what this device sent.",
+      "Notes and journal stay on this device. Settings › Privacy explains uploads and deletion, including gameplay samples kept with replacement identifiers.",
     ],
   ];
   return (

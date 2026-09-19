@@ -1,7 +1,7 @@
 "use client";
 import { motion, useMotionValue, useSpring, useTransform } from "motion/react";
 import { SITE } from "@/lib/site";
-import { AppleLogo, WindowsLogo } from "./OsLogos";
+import { PlatformDownloadLinks } from "./PlatformDownloadLinks";
 import { useEffect } from "react";
 import s from "./Hero.module.css";
 
@@ -41,12 +41,7 @@ export function Hero() {
           of the cantina. Open source, no account.
         </motion.p>
         <motion.div className={s.cta} {...up(0.34)}>
-          <a className="btn primary" href="/download">
-            <WindowsLogo /> Windows
-          </a>
-          <a className="btn" href="/download">
-            <AppleLogo /> macOS
-          </a>
+          <PlatformDownloadLinks />
         </motion.div>
         <motion.a className={s.source} href={SITE.github} {...up(0.44)}>
           <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden fill="currentColor">

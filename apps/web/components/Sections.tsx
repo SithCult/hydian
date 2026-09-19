@@ -1,5 +1,6 @@
 import { SITE } from "@/lib/site";
-import { AppleLogo, GitHubLogo, WindowsLogo } from "./OsLogos";
+import { GitHubLogo } from "./OsLogos";
+import { PlatformDownloadLinks } from "./PlatformDownloadLinks";
 import { Reveal } from "./Reveal";
 import s from "./Sections.module.css";
 
@@ -17,14 +18,15 @@ export function DataReadout() {
         <Reveal className={s.row}>
           <p className="hud">Hydian reads</p>
           <p>
-            The combat log the game writes and the settings folder with your character names. <em>Nothing else.</em>
+            SWTOR combat logs for characters, positions and encounters, and game settings for character names, friends
+            and notes.
           </p>
         </Reveal>
         <Reveal className={s.row} delay={0.06}>
           <p className="hud">Hydian sends</p>
           <p>
-            Only for a character you set to <em>In Character</em> or <em>Out of Character</em>: its name, server, place
-            and status, while you play. Every character starts <em>Invisible</em> and sends nothing.
+            Gameplay updates and log history for shared characters, nearby-player sightings and friend connections. Each
+            character starts <em>Invisible</em>; its status controls public visibility.
           </p>
         </Reveal>
         <Reveal className={s.row} delay={0.12}>
@@ -46,13 +48,15 @@ export function DataReadout() {
               </i>
             </div>
             <p className={s.dataNote}>
-              That card, and nothing more. Your notes, friends and journal stay on your device.
+              Shared characters appear with their status and in-game location. Your note text and journal stay on your
+              device; friend connections are also stored by the service.
             </p>
           </div>
         </Reveal>
       </div>
       <Reveal className={s.dataFoot} delay={0.2}>
-        Settings › Privacy deletes everything this device ever sent. The long version: <a href="/privacy">Privacy</a>.
+        Settings › Privacy lets you erase your installation&apos;s links to uploaded records. Read about uploads,
+        retained gameplay samples and your controls: <a href="/privacy">Privacy</a>.
       </Reveal>
       <Reveal className={s.source} delay={0.25}>
         <div className={s.sourceMark}>
@@ -142,7 +146,8 @@ const FAQ: { q: string; a: React.ReactNode }[] = [
         Hydian reads the combat log the game writes to your Documents folder. It is the same file the parsers read that
         raiders have used for a decade, <a href="https://ixparse.com/">StarParse</a> and{" "}
         <a href="https://parsely.io/">Parsely</a> among them, to measure their damage. Reading that file is part of the
-        game, and Hydian works with nothing else.
+        game. Hydian also reads game settings for characters, friends and notes, and checks process names for its
+        overlay. It is an independent fan project.
       </>
     ),
   },
@@ -152,7 +157,7 @@ const FAQ: { q: string; a: React.ReactNode }[] = [
   },
   {
     q: "What about people who are not on Hydian?",
-    a: "When your log mentions someone nearby, through targeting or grouping, they appear as a dashed pin with a name and a last-seen, so you know a place is not empty. Only people who are not on Hydian show up this way: anyone who shares a character decides for themselves, and Invisible means invisible.",
+    a: "When your log mentions someone nearby, targeting or grouping can add a dashed pin with a name and last-seen time. These observations come from your own log and can include players who are Invisible or use no Hydian app. Sightings also upload while your reporting character is shared; see Privacy for details.",
   },
   {
     q: "Does it run on a Mac?",
@@ -212,12 +217,7 @@ export function Download() {
         <h2 className={s.dlTitle}>Your next scene is already on the map.</h2>
         <p>Free, open source, no account. Windows and macOS.</p>
         <div className={s.cta}>
-          <a className="btn primary" href="/download">
-            <WindowsLogo /> Windows
-          </a>
-          <a className="btn" href="/download">
-            <AppleLogo /> macOS
-          </a>
+          <PlatformDownloadLinks />
           <a className={s.dlSource} href={SITE.github}>
             Source on GitHub
           </a>

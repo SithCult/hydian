@@ -84,7 +84,7 @@
   },
   "plugins": {
     "updater": {
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDc2NTA4MjBGNjk2MjVFQjUKUldTMVhtSnBENEpRZHMxNSsvUC9CcUc2V1FYTG1KR0V1cEtvcVZJUkxLNm53c2JkUy9LSktxRHQK",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEM4N0JFNUM1NjYyOTE4ODIKUldTQ0dDbG14ZVY3eUJ2bVUwclJYK0lnSmZNOHBXWmN3N0N6d1hRN3NEUWRQcm5PU1JQbndpNksK",
       "endpoints": [
         "https://dl.hydian.org/latest/latest.json",
         "https://github.com/SithCult/hydian/releases/latest/download/latest.json"

@@ -5,11 +5,16 @@ import { existsSync } from "node:fs";
 import { homedir } from "node:os";
 import { delimiter, join } from "node:path";
 
-const cargoBin = join(homedir(), ".cargo", "bin");
+const cargoBin = join(process.env.CARGO_HOME ?? join(homedir(), ".cargo"), "bin");
 const PATH = existsSync(cargoBin) ? `${cargoBin}${delimiter}${process.env.PATH ?? ""}` : process.env.PATH;
-const child = spawn("pnpm", ["-C", "apps/desktop", "tauri", "dev", ...process.argv.slice(2)], {
+const pnpm = process.env.npm_execpath;
+if (!pnpm) throw new Error("Start the desktop app with pnpm dev.");
+const child = spawn(process.execPath, [pnpm, "-C", "apps/desktop", "tauri", "dev", ...process.argv.slice(2)], {
   stdio: "inherit",
-  shell: true,
   env: { ...process.env, PATH, Path: PATH },
+});
+child.on("error", (error) => {
+  console.error(error.message);
+  process.exitCode = 1;
 });
 child.on("exit", (code) => process.exit(code ?? 1));

@@ -10,6 +10,7 @@ export function tileImage(file: string): HTMLImageElement {
   let im = imgCache.get(file);
   if (!im) {
     im = new Image();
+    im.crossOrigin = "anonymous";
     im.decoding = "async";
     im.onload = repaint;
     im.src = assetUrl(file);

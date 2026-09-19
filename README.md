@@ -69,6 +69,9 @@ see [GAME-CONTENT.md](GAME-CONTENT.md). The app loads them from the hosted tiles
 
 ### Running
 
+Use Node.js 24 (see `.nvmrc`) and the pinned pnpm version. The native app also needs Rust and the
+[platform prerequisites](https://v2.tauri.app/start/prerequisites/).
+
 ```bash
 pnpm install
 pnpm dev            # desktop app (needs Rust: https://rustup.rs)
@@ -78,13 +81,18 @@ pnpm web            # website on :4321
 pnpm -C apps/desktop tauri build   # installer
 ```
 
-CI runs `pnpm typecheck`, `pnpm lint` and `pnpm format:check`, then builds the installers for Windows, macOS
-(Apple Silicon) and macOS (Intel) on every push. Every change to `apps/desktop` on `main` becomes a release on
-its own: the version is bumped (patch, or minor when a commit says `feat:`), tagged, built and published.
+CI runs types, lint, formatting, JavaScript regressions against an isolated Postgres database, native Rust tests,
+and frontend builds, then builds the installers for Windows, macOS
+(Apple Silicon) and macOS (Intel) on every push. Changes to `apps/desktop` on `main` start a release:
+the version is bumped (patch, or minor when a commit says `feat:`), tagged and built. Publication requires
+maintainer approval and successful signing, notarization and updater-signature checks for every platform.
 
-The app talks to the Hydian backend (`DEFAULT_SERVER_URL` in `apps/desktop/src/store.ts`). Artwork comes from
-`ASSET_BASE` (`apps/desktop/src/data/maps.ts`) in production and from `apps/desktop/public/` in dev;
-`VITE_ASSET_BASE=/` bundles it into the installer.
+The app defaults to the hosted Hydian backend and artwork. For a local API, copy
+`apps/desktop/.env.example` to `apps/desktop/.env` and restart the app. `VITE_ASSET_BASE=/` uses artwork
+you provide in `apps/desktop/public/` and includes it in builds.
+
+See [local development](docs/LOCAL-DEVELOPMENT.md) for a full local setup and a synthetic demo, and
+[release signing](docs/RELEASING.md) for Apple notarization and Windows signing.
 
 ### Game folders
 
@@ -125,8 +133,9 @@ movement history from the logs on disk for shared characters, so the maps have h
 
 **What the server serves.** Presence and the registry: name, id, server, faction, planet, position while on the map,
 status.
-Heat and activity: counts per cell and hour for areas with ten or more In-Character players. `DELETE /v1/me`
-anonymises everything an install sent (Settings › Privacy).
+Heat and activity: counts from live In-Character pings once ten distinct characters contribute. History uploads
+and sightings are stored separately from these public results. `DELETE /v1/me` removes installation links and
+replaces identifiers in retained gameplay records (Settings › Privacy); see the privacy page for details.
 
 **Story phases.** Class-story rooms and personal hangars are instanced and hidden by default (Settings › Map).
 Classic planets are classified from the game's map notes; expansion planets from a hand-kept override list. Both

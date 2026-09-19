@@ -1,14 +1,14 @@
 import { readFileSync } from "node:fs";
 import { Pool } from "pg";
 
+const databaseUrl = process.env.DATABASE_URL;
+const hostname = databaseUrl ? new URL(databaseUrl).hostname : "localhost";
+const privateHost = ["localhost", "127.0.0.1", "[::1]"].includes(hostname) || hostname.endsWith(".railway.internal");
+
 export const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
+  connectionString: databaseUrl,
   max: 8,
-  ssl:
-    process.env.PGSSLMODE === "disable" ||
-    /localhost|127\.0\.0\.1|railway\.internal/.test(process.env.DATABASE_URL ?? "")
-      ? undefined
-      : { rejectUnauthorized: false },
+  ssl: process.env.PGSSLMODE === "disable" || privateHost ? undefined : { rejectUnauthorized: true },
 });
 
 /** Creates tables (idempotent) and monthly partitions for this month and the next three. */

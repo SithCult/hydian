@@ -10,7 +10,7 @@
 use std::{
     fs::File,
     io::{Read, Seek, SeekFrom},
-    path::Path,
+    path::{Path, PathBuf},
     time::UNIX_EPOCH,
 };
 use tauri::{
@@ -37,7 +37,17 @@ struct Stat {
     mtime: f64,
 }
 
-fn allowed_file(path: &Path) -> Result<(), String> {
+fn allowed_file(path: &Path) -> Result<PathBuf, String> {
+    let resolved = path.canonicalize().map_err(|e| e.to_string())?;
+    allowed_name(path)?;
+    allowed_name(&resolved)?;
+    if !resolved.is_file() {
+        return Err("not a regular file".into());
+    }
+    Ok(resolved)
+}
+
+fn allowed_name(path: &Path) -> Result<(), String> {
     let name = path
         .file_name()
         .and_then(|n| n.to_str())
@@ -76,8 +86,7 @@ fn fs_read_dir(path: String) -> Result<Vec<Entry>, String> {
 
 #[tauri::command]
 fn fs_stat(path: String) -> Result<Stat, String> {
-    let p = Path::new(&path);
-    allowed_file(p)?;
+    let p = allowed_file(Path::new(&path))?;
     let md = std::fs::metadata(p).map_err(|e| format!("{path}: {e}"))?;
     Ok(Stat {
         size: md.len(),
@@ -87,8 +96,7 @@ fn fs_stat(path: String) -> Result<Stat, String> {
 
 #[tauri::command]
 fn fs_read(path: String, offset: u64, length: u64) -> Result<Response, String> {
-    let p = Path::new(&path);
-    allowed_file(p)?;
+    let p = allowed_file(Path::new(&path))?;
     // File::open is read-only and shares the handle with the game (FILE_SHARE_READ|WRITE on Windows).
     let mut f = File::open(p).map_err(|e| format!("{path}: {e}"))?;
     f.seek(SeekFrom::Start(offset)).map_err(|e| e.to_string())?;
@@ -103,6 +111,81 @@ fn fs_read(path: String, offset: u64, length: u64) -> Result<Response, String> {
     }
     buf.truncate(n);
     Ok(Response::new(buf))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::allowed_file;
+    use std::{
+        fs,
+        path::PathBuf,
+        sync::atomic::{AtomicUsize, Ordering},
+    };
+
+    static NEXT_FIXTURE: AtomicUsize = AtomicUsize::new(0);
+
+    struct Fixture(PathBuf);
+
+    impl Fixture {
+        fn new() -> Self {
+            let path = std::env::temp_dir().join(format!(
+                "hydian-native-{}-{}",
+                std::process::id(),
+                NEXT_FIXTURE.fetch_add(1, Ordering::Relaxed)
+            ));
+            fs::create_dir(&path).unwrap();
+            Self(path)
+        }
+    }
+
+    impl Drop for Fixture {
+        fn drop(&mut self) {
+            let _ = fs::remove_dir_all(&self.0);
+        }
+    }
+
+    #[test]
+    fn accepts_game_files_but_rejects_other_extensions_and_directories() {
+        let fixture = Fixture::new();
+        for name in ["combat_test.txt", "PlayerGUIState.ini"] {
+            let path = fixture.0.join(name);
+            fs::write(&path, "synthetic fixture").unwrap();
+            assert!(allowed_file(&path).is_ok());
+        }
+        let private = fixture.0.join("private.txt");
+        fs::write(&private, "synthetic fixture").unwrap();
+        assert!(allowed_file(&private).is_err());
+        let directory = fixture.0.join("combat_directory.txt");
+        fs::create_dir(&directory).unwrap();
+        assert!(allowed_file(&directory).is_err());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_symlink_cannot_disguise_a_disallowed_file() {
+        let fixture = Fixture::new();
+        let target = fixture.0.join("private.txt");
+        let link = fixture.0.join("combat_link.txt");
+        fs::write(&target, "synthetic fixture").unwrap();
+        std::os::unix::fs::symlink(&target, &link).unwrap();
+        assert!(allowed_file(&link).is_err());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn game_files_in_redirected_directories_remain_readable() {
+        let fixture = Fixture::new();
+        let directory = fixture.0.join("game");
+        let redirected = fixture.0.join("redirected");
+        fs::create_dir(&directory).unwrap();
+        let target = directory.join("combat_test.txt");
+        fs::write(&target, "synthetic fixture").unwrap();
+        std::os::unix::fs::symlink(&directory, &redirected).unwrap();
+        assert_eq!(
+            allowed_file(&redirected.join("combat_test.txt")).unwrap(),
+            target.canonicalize().unwrap()
+        );
+    }
 }
 
 /// True when the OS launched us at login (autostart passes `--minimized`): the window starts hidden in the tray.

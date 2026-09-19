@@ -45,11 +45,10 @@
   margin-bottom: 18px;
 }
 .size {
-  font-style: normal;
+  color: inherit;
   font-family: var(--font-hud);
-  font-size: 11px;
+  font-size: 12px;
   letter-spacing: 0.08em;
-  opacity: 0.6;
   margin-left: 2px;
 }
 .note {

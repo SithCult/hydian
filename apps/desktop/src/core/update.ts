@@ -24,7 +24,7 @@ export async function appVersion(): Promise<string> {
 
 /** Looks for a newer release. Resolves to the state to show; never throws. */
 export async function checkForUpdate(): Promise<UpdateState> {
-  if (!isTauri()) return { phase: "idle" };
+  if (!isTauri() || import.meta.env.DEV) return { phase: "idle" };
   try {
     const { check } = await import("@tauri-apps/plugin-updater");
     const u = await check();
