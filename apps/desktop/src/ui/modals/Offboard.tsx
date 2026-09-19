@@ -48,8 +48,8 @@ export function OffboardModal({ close }: { close: () => void }) {
           <>
             <h2>Before you go</h2>
             <div style={{ color: "var(--text-muted)", fontSize: 13, marginBottom: 14 }}>
-              You are about to delete everything this installation sent to Hydian. If something is off, a word helps
-              more than a wipe. Everything here is optional.
+              You can remove this installation and its links to uploaded gameplay. The gameplay samples remain without
+              their original names and identifiers. Your feedback below is optional.
             </div>
             <div className="ob-section">What is the reason?</div>
             <div className="ob-reasons">
@@ -90,8 +90,9 @@ export function OffboardModal({ close }: { close: () => void }) {
           <>
             <h2>Delete what this device sent</h2>
             <p className="ob-lead">
-              Your characters leave the map and the registry now. Every position this device ever sent stays in the
-              statistics without a name. Notes and journal stay here. This cannot be undone.
+              This device stops sharing. Character entries currently shared from it leave the map and registry, and its
+              friend connections are removed. Uploaded gameplay keeps its time and place under replacement identifiers.
+              Notes and journal stay here. This cannot be undone.
             </p>
             <div className="ob-gate">
               <span className="ob-section">
@@ -108,7 +109,8 @@ export function OffboardModal({ close }: { close: () => void }) {
             </div>
             {error && (
               <p className="note" style={{ borderColor: "var(--danger)", marginTop: 12 }}>
-                Could not delete: {error}. Nothing was changed. Try again, or keep your data for now.
+                Could not confirm deletion: {error}. Sharing is off and queued uploads have been cleared. Try again to
+                confirm removal.
               </p>
             )}
           </>
@@ -118,8 +120,8 @@ export function OffboardModal({ close }: { close: () => void }) {
             <h2>Done</h2>
             <p className="ob-lead">
               {result.characters} character{result.characters === 1 ? "" : "s"} removed, {result.pings.toLocaleString()}{" "}
-              positions made anonymous. Every character here is Invisible again; share one whenever you want to be on
-              the map.
+              gameplay samples kept with replacement identifiers. Every character here is Invisible again and sharing is
+              off. Choose In Character or Out of Character to share one again.
             </p>
           </>
         )}

@@ -383,7 +383,7 @@ function PrivacyTab() {
       </p>
       <Toggle
         title="Upload log history"
-        hint="Older positions from the combat logs on this device, for the characters you share, so the maps have history."
+        hint="Upload older positions and nearby-player sightings for shared characters. Stored as gameplay history, separately from live presence."
         on={backfillOn}
         onToggle={() => setBackfill(!backfillOn)}
       >
@@ -412,8 +412,8 @@ function PrivacyTab() {
         <div className="l">
           <b>Delete what this device sent</b>
           <span>
-            Removes every character this device shared. Positions it sent stay in the heatmap without a name. Cannot be
-            undone.
+            Removes this installation and its friend connections. Uploaded gameplay samples retain time and place with
+            replacement identifiers. This cannot be undone.
           </span>
         </div>
         <Button variant="destructive" size="sm" onClick={() => openModal({ kind: "offboard" })}>

@@ -13,7 +13,7 @@ import {
   type Paths,
   type RosterEntry,
 } from "./core/gamelink";
-import type { SessionState } from "./core/parser";
+import { newSession, type SessionState } from "./core/parser";
 import { setShowPhases } from "./data/maps";
 import {
   Uplink,
@@ -57,7 +57,7 @@ export type Modal =
   | { kind: "offboard" }
   | null;
 /** Bump when the wording of the first-run notice changes in substance; it is shown again. */
-export const NOTICE_VERSION = 2;
+export const NOTICE_VERSION = 3;
 
 type ToastKind = "info" | "ok" | "warn";
 
@@ -176,9 +176,10 @@ const LS = {
 };
 
 let tail: Tail | null = null;
-export const DEFAULT_SERVER_URL = "https://api-production-2fef.up.railway.app"; // hosted instance (Railway, project "hydian")
+export const DEFAULT_SERVER_URL = (import.meta.env.VITE_SERVER_URL as string | undefined) ?? "https://api.hydian.org";
 let uplink: Uplink | null = null;
 let backfill: Backfill | null = null;
+let erasingData = false;
 let overlayHost: OverlayHost | null = null;
 let gameNames: { server: string; name: string; owner: string }[] = []; // names on my in-game friends lists, per server, and whose list
 /** Push the planet-local view to the overlay whenever it could have changed (cheap: it diffs by content). */
@@ -198,6 +199,7 @@ function planetBySlugSafe(slug: string) {
   return p ? p.name : null;
 }
 function startBackfill(get: () => AppState) {
+  if (erasingData) return;
   const dir = get().paths?.logsDir;
   // the run also builds the local "met" index, which needs no server; the uploads inside are gated per file
   if (backfill && dir && get().backfillOn) void backfill.run(dir);
@@ -249,7 +251,7 @@ export const useApp = create<AppState>((set, get) => ({
   heat: LS.get("heat", false),
   registry: {},
   serverUrl: DEFAULT_SERVER_URL,
-  share: true,
+  share: LS.get("share", true),
   uplink: { status: "off", queued: 0, sent: 0, lastError: "", installId: "" },
   overlay: loadOverlaySettings(),
   friends: LS.get("friends", LS.get("follows", {})), // "follows" was the old name of the same list
@@ -566,14 +568,23 @@ export const useApp = create<AppState>((set, get) => ({
   },
   async deleteMyData(survey) {
     if (!uplink) throw new Error("not connected");
-    if (survey && (survey.reasons.length || survey.rating || survey.comment))
-      await uplink.feedback("offboarding", survey.reasons, survey.rating, survey.comment);
-    const r = await uplink.deleteMyData();
-    // every character goes back to Invisible; nothing is sent again until the user opts in anew
+    if (erasingData) throw new Error("deletion already in progress");
+    erasingData = true;
     const charStatus: Record<string, CharStatus> = {};
-    set({ charStatus, livePlayers: {}, registry: {} });
+    set({ share: false, charStatus, livePlayers: {}, registry: {} });
+    LS.set("share", false);
     LS.set("charStatus", charStatus);
-    return r;
+    uplink.configure(get().serverUrl, false);
+    try {
+      await backfill?.cancel();
+      if (survey && (survey.reasons.length || survey.rating || survey.comment))
+        await uplink.feedback("offboarding", survey.reasons, survey.rating, survey.comment);
+      const r = await uplink.deleteMyData();
+      backfill?.reset();
+      return r;
+    } finally {
+      erasingData = false;
+    }
   },
   async loadRegistry(server, force = false) {
     const cur = get().registry[server];
@@ -599,19 +610,42 @@ export const useApp = create<AppState>((set, get) => ({
     LS.set("activeKey", activeKey);
   },
   setStatus(status) {
+    if (erasingData) return;
     const key = get().activeKey;
     if (!key) return;
     const cur = get().charStatus[key] ?? DEFAULT_STATUS;
+    if (cur.status === "invisible" && status === "invisible") return;
     const charStatus = { ...get().charStatus, [key]: { ...cur, status } };
     set({ charStatus });
     LS.set("charStatus", charStatus);
+    if (status === "invisible") {
+      const [server, id] = key.split(":");
+      uplink?.discardCharacter(server, id);
+    }
     if (cur.status === "invisible" && status !== "invisible") {
+      if (!get().share) get().setShare(true);
       const [srv, id] = key.split(":");
       backfill?.release(srv, id);
       startBackfill(get);
     }
-    const s = get().live;
-    if (s?.ownerId && uplink && `${s.server}:${s.ownerId}` === key) {
+    const live = get().live;
+    const character = get().myChars.find((c) => `${c.server}:${c.id}` === key);
+    const s =
+      live?.ownerId && `${live.server}:${live.ownerId}` === key
+        ? live
+        : status === "invisible" && character
+          ? {
+              ...newSession(),
+              ownerId: character.id,
+              ownerName: character.name,
+              server: character.server,
+              cls: character.cls,
+              disc: character.disc,
+              area: character.area,
+              pos: character.pos,
+            }
+          : null;
+    if (s && uplink) {
       const p = pingFromSession("status", s, status, charStatus[key].lfrp, undefined, charStatus[key].instance ?? null);
       if (p) {
         uplink.push(p);
@@ -652,6 +686,7 @@ export const useApp = create<AppState>((set, get) => ({
     }
   },
   setShare(share) {
+    if (share && erasingData) return;
     set({ share });
     LS.set("share", share);
     uplink?.configure(get().serverUrl, share);

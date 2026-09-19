@@ -8,13 +8,16 @@ import { STALE_MS } from "../presence.ts";
 import { SERVER_RE } from "../schemas.ts";
 import { factionOf } from "../faction.ts";
 
+const cache = new TtlCache<unknown>(60_000);
+export const clearRegistryCache = () => cache.clear();
+
 export default async function registry(app: FastifyInstance) {
-  const cache = new TtlCache<unknown>(60_000);
   app.get<{ Querystring: { server?: string } }>("/v1/registry", async (req, reply) => {
     const server = req.query.server ?? "";
     if (!SERVER_RE.test(server)) return reply.code(400).send({ error: "server required" });
     const hit = cache.get(server);
     if (hit) return hit;
+    const generation = cache.generation;
     const r = await pool.query(
       `SELECT c.id::text AS id, c.name, c.class, p.area_id::text AS area_id, p.area_name, p.status, p.lfrp, p.instance, p.x, p.y, p.h,
               (extract(epoch FROM COALESCE(p.log_ts, p.received_at, h.last)) * 1000)::bigint AS last_active
@@ -22,10 +25,10 @@ export default async function registry(app: FastifyInstance) {
        LEFT JOIN LATERAL (
          SELECT area_id, area_name, status, lfrp, instance, x, y, h, log_ts, received_at FROM pings
          WHERE server = c.server AND character_id = c.id AND install_id = c.install_id AND kind <> 'history' AND status IS NOT NULL
-         ORDER BY received_at DESC LIMIT 1) p ON true
+         ORDER BY received_at DESC, id DESC LIMIT 1) p ON true
        LEFT JOIN LATERAL (
          SELECT max(log_ts) AS last FROM pings WHERE server = c.server AND character_id = c.id AND kind = 'history') h ON true
-       WHERE c.server = $1 AND c.install_id IS NOT NULL
+       WHERE c.server = $1 AND c.install_id IS NOT NULL AND p.status IS DISTINCT FROM 'invisible'
        ORDER BY last_active DESC NULLS LAST LIMIT 2000`,
       [server],
     );
@@ -50,6 +53,6 @@ export default async function registry(app: FastifyInstance) {
         lastActive: last,
       };
     });
-    return cache.set(server, { server, characters });
+    return cache.set(server, { server, characters }, generation);
   });
 }

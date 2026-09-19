@@ -1,6 +1,6 @@
 // Uplink: sends this install's pings (own character + sightings) to the Hydian server and
-// subscribes to live presence for the selected game server. Nothing is dropped client-side:
-// the queue persists across restarts and retries with backoff.
+// subscribes to live presence for the selected game server. Pending uploads persist across
+// restarts and retry with backoff until sharing is disabled.
 import type { Area, Position, SessionState, Sighting } from "./parser";
 import { hueOf, type Player, type RPStatus } from "../model";
 import { planetById } from "../data/planets";
@@ -76,13 +76,21 @@ function uuid(): string {
 }
 
 export class Uplink {
-  readonly installId = uuid();
+  private currentInstallId = uuid();
+  get installId() {
+    return this.currentInstallId;
+  }
   private pings: PingOut[] = [];
   private sightings: SightingOut[] = [];
   private timer: number | null = null;
   private ws: WebSocket | null = null;
   private wsServer = "";
   private backoff = 5000;
+  private writes = new Set<Promise<Response>>();
+  private flushing: Promise<void> | null = null;
+  private erasing = false;
+  private sharingEpoch = 0;
+  private erasure: Promise<{ characters: number; pings: number; sightings: number }> | null = null;
   status: "off" | "idle" | "sending" | "error" | "live" = "off";
   lastError = "";
   sent = 0;
@@ -103,19 +111,29 @@ export class Uplink {
   ) {
     try {
       const q = JSON.parse(localStorage.getItem(LSQ) ?? "null");
-      if (q) {
+      if (q && enabled) {
         this.pings = q.pings ?? [];
         this.sightings = q.sightings ?? [];
       }
     } catch {
       /* ignore */
     }
+    if (!enabled) this.persist();
   }
 
   configure(baseUrl: string, enabled: boolean) {
+    enabled = enabled && !this.erasing;
     const changed = baseUrl !== this.baseUrl || enabled !== this.enabled;
+    if (changed) this.sharingEpoch++;
     this.baseUrl = baseUrl.replace(/\/+$/, "");
     this.enabled = enabled;
+    if (!enabled) {
+      if (this.timer !== null) window.clearTimeout(this.timer);
+      this.timer = null;
+      this.pings = [];
+      this.sightings = [];
+      this.persist();
+    }
     if (changed) {
       this.closeLive();
       if (this.wsServer) this.subscribe(this.wsServer);
@@ -126,14 +144,21 @@ export class Uplink {
 
   // ---------------------------------------------------------------- queueing
   push(p: PingOut) {
+    if (!this.enabled) return;
     this.pings.push(p);
     this.persist();
     this.schedule();
   }
   pushSighting(s: SightingOut) {
+    if (!this.enabled) return;
     this.sightings.push(s);
     this.persist();
     this.schedule();
+  }
+  discardCharacter(server: string, characterId: string) {
+    this.pings = this.pings.filter((p) => p.server !== server || p.characterId !== characterId);
+    this.sightings = this.sightings.filter((s) => s.server !== server || s.seenBy !== characterId);
+    this.persist();
   }
   get queued() {
     return this.pings.length + this.sightings.length;
@@ -155,28 +180,36 @@ export class Uplink {
       void this.flush();
     }, delay);
   }
-  async flush() {
+  flush() {
+    if (this.flushing) return this.flushing;
+    this.flushing = this.flushQueue().finally(() => {
+      this.flushing = null;
+      if (this.queued) this.schedule();
+    });
+    return this.flushing;
+  }
+  private async flushQueue() {
     if (!this.enabled || !this.baseUrl || this.queued === 0) return;
+    const epoch = this.sharingEpoch;
     const pings = this.pings.slice(0, 200),
       sightings = this.sightings.slice(0, 500);
     this.status = "sending";
     this.onState();
     try {
-      const r = await fetch(`${this.baseUrl}/v1/pings`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ installId: this.installId, appVersion: APP_VERSION, pings, sightings }),
-      });
+      const r = await this.post("/v1/pings", { appVersion: APP_VERSION, pings, sightings });
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       const j = (await r.json()) as { conflicts?: string[] };
+      if (!this.enabled || epoch !== this.sharingEpoch) return;
       // a character another install is actively sharing: the server dropped those pings; say so once
       const conflicts = j.conflicts ?? [];
       if (conflicts.length && conflicts.join() !== this.lastConflicts) {
         this.lastConflicts = conflicts.join();
         this.onConflict?.(conflicts);
       }
-      this.pings.splice(0, pings.length);
-      this.sightings.splice(0, sightings.length);
+      const sentPings = new Set(pings),
+        sentSightings = new Set(sightings);
+      this.pings = this.pings.filter((p) => !sentPings.has(p));
+      this.sightings = this.sightings.filter((s) => !sentSightings.has(s));
       this.persist();
       this.sent += pings.length + sightings.length;
       this.backoff = 5000;
@@ -185,6 +218,7 @@ export class Uplink {
       this.onState();
       if (this.queued) this.schedule(500);
     } catch (e) {
+      if (!this.enabled || epoch !== this.sharingEpoch) return;
       this.lastError = String((e as Error).message ?? e);
       this.status = "error";
       this.onState();
@@ -196,12 +230,9 @@ export class Uplink {
   /** One direct POST (used by the history backfill); throws on failure so the caller can retry the file. */
   async send(pings: PingOut[], sightings: SightingOut[], historical = false) {
     if (!this.enabled || !this.baseUrl) throw new Error("uplink off");
-    const r = await fetch(`${this.baseUrl}/v1/pings`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ installId: this.installId, appVersion: APP_VERSION, historical, pings, sightings }),
-    });
+    const r = await this.post("/v1/pings", { appVersion: APP_VERSION, historical, pings, sightings });
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    if (!this.enabled) return;
     this.sent += pings.length + sightings.length;
     this.onState();
   }
@@ -210,51 +241,68 @@ export class Uplink {
   async friend(server: string, characterId: string, action: "add" | "remove") {
     if (!this.baseUrl || !this.enabled) return;
     try {
-      await fetch(`${this.baseUrl}/v1/friends`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ installId: this.installId, server, characterId, action }),
-      });
+      await this.post("/v1/friends", { server, characterId, action });
     } catch {
       /* ignore */
     }
   }
 
-  /** Optional survey; failures are swallowed; feedback must never block leaving. */
+  /** Optional survey; a failed submission does not fail deletion. */
   async feedback(kind: "offboarding" | "general", reasons: string[], rating: number | null, comment: string) {
-    if (!this.baseUrl) return;
+    if (!this.baseUrl || this.erasing) return;
     try {
-      await fetch(`${this.baseUrl}/v1/feedback`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          installId: this.installId,
-          appVersion: APP_VERSION,
-          kind,
-          reasons,
-          rating,
-          comment: comment || null,
-        }),
+      await this.post("/v1/feedback", {
+        appVersion: APP_VERSION,
+        kind,
+        reasons,
+        rating,
+        comment: comment || null,
       });
     } catch {
       /* ignore */
     }
   }
 
-  /** Delete everything this install ever sent (server anonymises it); then forget the install id and queues. */
-  async deleteMyData(): Promise<{ characters: number; pings: number; sightings: number }> {
+  private post(path: string, body: Record<string, unknown>) {
+    const request = fetch(`${this.baseUrl}${path}`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ installId: this.installId, ...body }),
+    }).finally(() => this.writes.delete(request));
+    this.writes.add(request);
+    return request;
+  }
+
+  /** Stop sharing before waiting for existing writes; a failed deletion can retry the same identity. */
+  deleteMyData(): Promise<{ characters: number; pings: number; sightings: number }> {
+    if (this.erasure) return this.erasure;
+    this.erasing = true;
+    this.configure(this.baseUrl, false);
+    this.erasure = this.erase().finally(() => {
+      this.erasing = false;
+      this.erasure = null;
+      this.onState();
+    });
+    return this.erasure;
+  }
+
+  private async erase() {
     if (!this.baseUrl) throw new Error("no server configured");
+    // Aborting a request cannot undo a write already received by the server.
+    await Promise.allSettled(this.writes);
+    await this.flushing;
     const r = await fetch(`${this.baseUrl}/v1/me`, {
       method: "DELETE",
       headers: { "x-install-id": this.installId },
     });
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
     const j = (await r.json()) as { characters: number; pings: number; sightings: number };
-    this.pings = [];
-    this.sightings = [];
-    this.persist();
+    this.currentInstallId = crypto.randomUUID();
+    this.sent = 0;
+    this.lastConflicts = "";
+    this.lastError = "";
     try {
-      localStorage.removeItem("hydian:installId");
+      localStorage.setItem("hydian:installId", this.installId);
       localStorage.removeItem("hydian:backfill:done");
     } catch {
       /* ignore */

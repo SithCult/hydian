@@ -41,6 +41,8 @@ export class Backfill {
   onMet: (met: MetIndex) => void = () => {};
   private stop = false;
   private wake: (() => void) | null = null;
+  private activeRun: Promise<void> | null = null;
+  private cancellationVersion = 0;
 
   constructor(
     private uplink: Uplink,
@@ -80,15 +82,36 @@ export class Backfill {
   }
   cancel() {
     this.stop = true;
+    this.cancellationVersion++;
     this.wake?.();
+    return this.activeRun ?? Promise.resolve();
   }
 
-  async run(logsDir: string) {
-    if (this.state.running) {
+  reset() {
+    this.doneMap = {};
+    this.save();
+    this.emit({ total: 0, done: 0, skipped: 0, pings: 0, sightings: 0, error: "" });
+  }
+
+  run(logsDir: string): Promise<void> {
+    if (this.activeRun) {
+      if (this.stop) {
+        const version = this.cancellationVersion;
+        return this.activeRun.then(() => {
+          if (version === this.cancellationVersion) return this.run(logsDir);
+        });
+      }
       this.wake?.();
-      return;
+      return this.activeRun;
     }
     this.stop = false;
+    this.activeRun = this.scan(logsDir).finally(() => {
+      this.activeRun = null;
+    });
+    return this.activeRun;
+  }
+
+  private async scan(logsDir: string) {
     this.emit({ running: true, error: "" });
     try {
       for (;;) {
@@ -109,6 +132,7 @@ export class Backfill {
           this.emit({ file: f });
           try {
             const mark = await this.file(logsDir, f, upload);
+            if (this.stop) break;
             this.metFiles[f] = 1;
             saveMet(this.met, this.metFiles);
             this.onMet(this.met);
@@ -123,6 +147,7 @@ export class Backfill {
               skipped: this.state.skipped + (mark.startsWith("!") ? 1 : 0),
             });
           } catch (e) {
+            if (this.stop) break;
             this.emit({ error: String((e as Error).message ?? e) });
             await this.sleep(20_000); // server down / offline: wait, then retry the same file
             break;
@@ -138,11 +163,12 @@ export class Backfill {
 
   private sleep(ms: number) {
     return new Promise<void>((r) => {
+      const timer = setTimeout(() => this.wake?.(), ms);
       this.wake = () => {
+        clearTimeout(timer);
         this.wake = null;
         r();
       };
-      setTimeout(() => this.wake?.(), ms);
     });
   }
 
@@ -218,7 +244,9 @@ export class Backfill {
     };
     let rest: Uint8Array = new Uint8Array(0);
     for (let off = 0; off < size; off += CHUNK) {
+      if (this.stop) throw new Error("cancelled");
       const chunk = await fs.read(path, off, Math.min(CHUNK, size - off));
+      if (this.stop) throw new Error("cancelled");
       const buf = rest.length ? concat(rest, chunk) : chunk;
       rest = feedChunk(s, buf, (b) => decoder.decode(b), ev);
       await flushIfFull();
@@ -228,15 +256,17 @@ export class Backfill {
     if (rest.length) feedChunk(s, concat(rest, new Uint8Array([10])), (b) => decoder.decode(b), ev);
     foldFile(this.met, name, met);
     if (!s.ownerId || !s.server) return "-";
-    if (!shared) return `!${s.server}:${s.ownerId}`;
+    if (!shared || !this.isShared(s.server, s.ownerId)) return `!${s.server}:${s.ownerId}`;
     if (upload) await this.send(pings, sights);
     return `${s.server}:${s.ownerId}`;
   }
 
   private async send(pings: PingOut[], sights: SightingOut[]) {
     while (pings.length || sights.length) {
-      const p = pings.splice(0, BATCH_PINGS),
-        sg = sights.splice(0, BATCH_SIGHTS);
+      if (this.stop) throw new Error("cancelled");
+      const p = pings.splice(0, BATCH_PINGS).filter((ping) => this.isShared(ping.server, ping.characterId)),
+        sg = sights.splice(0, BATCH_SIGHTS).filter((sight) => this.isShared(sight.server, sight.seenBy));
+      if (!p.length && !sg.length) continue;
       await this.uplink.send(p, sg, true);
       this.emit({ pings: this.state.pings + p.length, sightings: this.state.sightings + sg.length });
     }

@@ -5,49 +5,61 @@
 // activity statistics stay honest) but loses the character: id re-keyed to a random one per character,
 // name/raw line/class wiped. Characters, friends and live presence are removed outright. Not reversible.
 import type { FastifyInstance } from "fastify";
-import { pool } from "../db.ts";
+import { randomInt, randomUUID } from "node:crypto";
+import { z } from "zod";
 import { clearCaches } from "../cache.ts";
-import { leave } from "../presence.ts";
+import { leaveInstall } from "../presence.ts";
+import { withInstallLock } from "../installs.ts";
 
-const UUID_RE = /^[0-9a-f-]{36}$/i;
-const anonId = () => String(900000000000000 + Math.floor(Math.random() * 99999999999999)); // outside the game's id range
+const installSchema = z.string().uuid();
+const anonId = () => String(-randomInt(1, 2 ** 48 - 1)); // game ids are positive
 
 export default async function me(app: FastifyInstance) {
   app.delete<{ Body?: { installId?: string } }>("/v1/me", async (req, reply) => {
     const installId = String(req.headers["x-install-id"] ?? req.body?.installId ?? "");
-    if (!UUID_RE.test(installId)) return reply.code(400).send({ error: "installId required" });
-    const client = await pool.connect();
-    try {
-      await client.query("BEGIN");
-      const chars = await client.query(`SELECT DISTINCT server, character_id FROM pings WHERE install_id = $1`, [
-        installId,
-      ]);
-      let pings = 0;
-      for (const c of chars.rows) {
-        const r = await client.query(
-          `UPDATE pings SET character_id = $3, character_name = 'deleted', class = NULL, discipline = NULL, raw = NULL
-           WHERE install_id = $1 AND server = $2 AND character_id = $4`,
-          [installId, c.server, anonId(), c.character_id],
+    if (!installSchema.safeParse(installId).success) return reply.code(400).send({ error: "installId required" });
+    return withInstallLock(installId, async (client, { digest }) => {
+      try {
+        await client.query("BEGIN");
+        await client.query("INSERT INTO erased_installs (digest) VALUES ($1) ON CONFLICT DO NOTHING", [digest]);
+        const identities = await client.query(
+          `SELECT server, character_id FROM pings WHERE install_id = $1
+         UNION SELECT server, character_id FROM sightings WHERE install_id = $1`,
+          [installId],
         );
-        pings += r.rowCount ?? 0;
-        await client.query(`DELETE FROM characters WHERE server = $1 AND id = $2 AND install_id = $3`, [
-          c.server,
-          c.character_id,
-          installId,
-        ]);
-        leave(`${c.server}:${c.character_id}`);
+        const anonymousInstall = randomUUID();
+        let pings = 0;
+        let sightings = 0;
+        for (const c of identities.rows) {
+          const anonymousCharacter = anonId();
+          const args = [installId, c.server, anonymousCharacter, c.character_id, anonymousInstall];
+          const p = await client.query(
+            `UPDATE pings SET character_id = $3, character_name = 'deleted', class = NULL, discipline = NULL,
+             raw = NULL, install_id = $5
+           WHERE install_id = $1 AND server = $2 AND character_id = $4`,
+            args,
+          );
+          pings += p.rowCount ?? 0;
+          const s = await client.query(
+            `UPDATE sightings SET character_id = $3, character_name = 'deleted', seen_by = 0, raw = NULL, install_id = $5
+           WHERE install_id = $1 AND server = $2 AND character_id = $4`,
+            args,
+          );
+          sightings += s.rowCount ?? 0;
+        }
+        const chars = await client.query(`DELETE FROM characters WHERE install_id = $1`, [installId]);
+        await client.query(`UPDATE characters SET claimed_by = NULL WHERE claimed_by = $1`, [installId]);
+        await client.query(`DELETE FROM friends WHERE install_id = $1`, [installId]);
+        await client.query(`UPDATE feedback SET install_id = NULL WHERE install_id = $1`, [installId]);
+        await client.query(`DELETE FROM installs WHERE id = $1`, [installId]);
+        await client.query("COMMIT");
+        leaveInstall(installId);
+        clearCaches();
+        return { ok: true, characters: chars.rowCount, pings, sightings };
+      } catch (e) {
+        await client.query("ROLLBACK");
+        throw e;
       }
-      const sg = await client.query(`UPDATE sightings SET seen_by = 0, raw = NULL WHERE install_id = $1`, [installId]);
-      await client.query(`DELETE FROM friends WHERE install_id = $1`, [installId]);
-      await client.query(`DELETE FROM installs WHERE id = $1`, [installId]);
-      await client.query("COMMIT");
-      clearCaches();
-      return { ok: true, characters: chars.rowCount, pings, sightings: sg.rowCount ?? 0 };
-    } catch (e) {
-      await client.query("ROLLBACK");
-      throw e;
-    } finally {
-      client.release();
-    }
+    });
   });
 }

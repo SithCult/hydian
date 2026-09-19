@@ -8,6 +8,11 @@ CREATE TABLE IF NOT EXISTS installs (
   app_version text
 );
 
+-- Reject delayed uploads after erasure without keeping the original install credential.
+CREATE TABLE IF NOT EXISTS erased_installs (
+  digest text PRIMARY KEY
+);
+
 CREATE TABLE IF NOT EXISTS characters (
   server      text   NOT NULL,
   id          bigint NOT NULL,

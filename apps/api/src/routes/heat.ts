@@ -30,6 +30,7 @@ export default async function heat(app: FastifyInstance) {
     const key = `${server}:${area}:${days}`;
     const hit = heatCache.get(key);
     if (hit) return hit;
+    const generation = heatCache.generation;
     const n = await pool.query(
       `SELECT count(DISTINCT character_id) AS players FROM pings
        WHERE server = $1 AND area_id = $2 AND x IS NOT NULL AND status = 'ic' AND kind <> 'history' AND log_ts > now() - ($3 || ' days')::interval`,
@@ -37,7 +38,7 @@ export default async function heat(app: FastifyInstance) {
     );
     const players = Number(n.rows[0]?.players ?? 0);
     const body = { server, area, days, cell: CELL, players, minPlayers: MIN_PLAYERS, cells: [] as number[][] };
-    if (players < MIN_PLAYERS) return heatCache.set(key, body);
+    if (players < MIN_PLAYERS) return heatCache.set(key, body, generation);
     const r = await pool.query(
       `WITH pts AS (
          SELECT character_id, x, y, log_ts FROM pings
@@ -49,7 +50,7 @@ export default async function heat(app: FastifyInstance) {
       [server, area, String(days), CELL, MAX_CELLS],
     );
     body.cells = r.rows.map((c) => [Number(c.cx), Number(c.cz), Number(c.people), Number(c.days), Number(c.samples)]);
-    return heatCache.set(key, body);
+    return heatCache.set(key, body, generation);
   });
 
   // 7 x 24 grid (ISO weekday x hour, UTC) of distinct (character, day) In-Character presences.
@@ -61,6 +62,7 @@ export default async function heat(app: FastifyInstance) {
     const key = `${server}:${days}`;
     const hit = actCache.get(key);
     if (hit) return hit;
+    const generation = actCache.generation;
     const r = await pool.query(
       `WITH ic AS (
          SELECT DISTINCT character_id, log_ts::date AS d, extract(isodow FROM log_ts)::int AS dow, extract(hour FROM log_ts)::int AS hr
@@ -74,7 +76,7 @@ export default async function heat(app: FastifyInstance) {
       grid = emptyGrid();
       for (const x of r.rows) grid[Number(x.dow) - 1][Number(x.hr)] = Number(x.n);
     }
-    return actCache.set(key, { server, days, players, minPlayers: MIN_PLAYERS, tz: "UTC", grid });
+    return actCache.set(key, { server, days, players, minPlayers: MIN_PLAYERS, tz: "UTC", grid }, generation);
   });
 
   // Internal, per-character availability: "when does this character usually play, and where". Guarded by

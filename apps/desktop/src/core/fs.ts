@@ -1,7 +1,7 @@
 // Read-only file access abstraction.
-// In the packaged Tauri app this is backed by @tauri-apps/plugin-fs, scoped by
-// capabilities/default.json to the two SWTOR folders. In the browser dev flow
-// it talks to dev-bridge/server.mjs which enforces the same jail.
+// The Tauri commands accept combat logs and .ini files, including in manually
+// chosen folders. The local browser bridge also restricts reads to its detected
+// SWTOR roots and only accepts requests from the local preview.
 import { IS_MAC, SEP } from "./platform";
 
 export interface DirEntry {
@@ -28,19 +28,29 @@ export const isTauri = (): boolean => typeof window !== "undefined" && "__TAURI_
 export const join = (...parts: string[]) => parts.join(SEP).replace(/[\\/]+/g, SEP);
 
 // ---------------------------------------------------------------- dev bridge
+async function bridgeRequest(url: string): Promise<Response> {
+  const response = await fetch(url);
+  if (!response.ok) {
+    const fallback = `Local game-file access failed (HTTP ${response.status})`;
+    const body = await response.json().catch(() => ({ error: fallback }));
+    throw new Error(typeof body?.error === "string" ? body.error : fallback);
+  }
+  return response;
+}
+
 const bridge: GameFS = {
   async roots() {
-    return (await fetch("/bridge/roots")).json();
+    return (await bridgeRequest("/bridge/roots")).json();
   },
   async readDir(path, filter) {
     const q = filter ? `&filter=${encodeURIComponent(filter.source)}` : "";
-    return (await fetch(`/bridge/readDir?path=${encodeURIComponent(path)}${q}`)).json();
+    return (await bridgeRequest(`/bridge/readDir?path=${encodeURIComponent(path)}${q}`)).json();
   },
   async stat(path) {
-    return (await fetch(`/bridge/stat?path=${encodeURIComponent(path)}`)).json();
+    return (await bridgeRequest(`/bridge/stat?path=${encodeURIComponent(path)}`)).json();
   },
   async read(path, offset, length) {
-    const r = await fetch(`/bridge/read?path=${encodeURIComponent(path)}&offset=${offset}&length=${length}`);
+    const r = await bridgeRequest(`/bridge/read?path=${encodeURIComponent(path)}&offset=${offset}&length=${length}`);
     return new Uint8Array(await r.arrayBuffer());
   },
 };

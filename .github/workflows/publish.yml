@@ -1,19 +1,18 @@
 name: Publish downloads
 
-# After a release is built, its installers go to the download bucket behind dl.hydian.org, so the website
-# and the in-app updater hand out files from hydian.org. Called by release.yml; run by hand to publish again. Stable names under latest/, a copy under the version,
-# the updater manifest (latest.json, rewritten to point at the bucket) and a small manifest the download page
-# reads for version, date and sizes.
+# Called only after all release targets pass signature verification. Retry failed jobs in Release to republish.
 on:
   workflow_call:
     inputs:
       tag:
         type: string
         required: true
-  workflow_dispatch:
-    inputs:
-      tag:
-        description: Release tag to publish again (v0.2.0)
+    secrets:
+      R2_ACCESS_KEY_ID:
+        required: true
+      R2_SECRET_ACCESS_KEY:
+        required: true
+      R2_ACCOUNT_ID:
         required: true
 
 env:
@@ -21,25 +20,49 @@ env:
 
 jobs:
   publish:
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write
     steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: ${{ inputs.tag }}
+          persist-credentials: false
+      - name: Install updater signature verifier
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends minisign
       - name: Download release assets
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ inputs.tag }}
         run: |
-          set -eu
+          set -euo pipefail
+          [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo 'Invalid release tag.' >&2; exit 1; }
           mkdir -p out/latest "out/$TAG"
           gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --dir assets
-          ls -la assets
+          jq -r '.plugins.updater.pubkey' apps/desktop/src-tauri/tauri.conf.json | base64 --decode > updater.pub
+          jq -e --arg version "${TAG#v}" --arg prefix "https://github.com/$GITHUB_REPOSITORY/releases/download/$TAG/" '
+            .version == $version and
+            (.platforms | has("windows-x86_64") and has("darwin-aarch64") and has("darwin-x86_64")) and
+            all(.platforms[]; (.signature | type == "string") and (.signature | length > 0) and (.url | startswith($prefix)))
+          ' assets/latest.json > /dev/null
+          while IFS= read -r url; do
+            file=${url##*/}
+            test -s "assets/$file"
+            test -s "assets/$file.sig"
+            jq -e --arg url "$url" --arg signature "$(tr -d '\r\n' < "assets/$file.sig")" \
+              'all(.platforms[] | select(.url == $url); .signature == $signature)' assets/latest.json > /dev/null
+            base64 --decode < "assets/$file.sig" > updater.sig
+            minisign -Vm "assets/$file" -p updater.pub -x updater.sig -q
+          done < <(jq -r '.platforms[].url' assets/latest.json | sort -u)
           cp assets/*_x64-setup.exe out/latest/Hydian-Setup.exe
           cp assets/*_aarch64.dmg   out/latest/Hydian-AppleSilicon.dmg
           cp assets/*_x64.dmg       out/latest/Hydian-Intel.dmg
           cp out/latest/* "out/$TAG/"
           # updater artefacts keep their names; latest.json points at the bucket instead of GitHub
-          cp assets/*.sig assets/*.tar.gz "out/$TAG/" 2>/dev/null || true
+          cp assets/*.sig assets/*.tar.gz "out/$TAG/"
           cp assets/*_x64-setup.exe "out/$TAG/"
           sed "s#https://github.com/$GITHUB_REPOSITORY/releases/download/$TAG/#https://dl.hydian.org/$TAG/#g" \
             assets/latest.json > out/latest/latest.json
@@ -59,6 +82,12 @@ jobs:
           }
           EOF
           cat out/latest/releases.json
+
+      - name: Publish verified GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.tag }}
+        run: gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --draft=false --latest
 
       - name: Upload to R2
         env:

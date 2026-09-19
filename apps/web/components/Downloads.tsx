@@ -7,8 +7,8 @@ import { SITE } from "@/lib/site";
 import s from "./Downloads.module.css";
 import { AppleLogo, WindowsLogo } from "./OsLogos";
 import { AppShot } from "./AppShot";
+import { useDesktopOs, type DesktopOs } from "@/lib/platform";
 
-type Os = "windows" | "mac";
 type FileKey = "windows" | "macArm" | "macIntel";
 interface Release {
   version: string;
@@ -24,12 +24,7 @@ const FILES: Record<FileKey, string> = {
 
 const mb = (n?: number) => (n ? `${(n / 1048576).toFixed(0)} MB` : "");
 
-function detect(): Os {
-  const ua = navigator.userAgent;
-  return /Macintosh|Mac OS X/.test(ua) ? "mac" : "windows";
-}
-
-const CARDS: Record<Os, { logo: React.ReactNode; name: string; req: string; note: string }> = {
+const CARDS: Record<DesktopOs, { logo: React.ReactNode; name: string; req: string; note: string }> = {
   windows: {
     logo: <WindowsLogo size={40} />,
     name: "Windows",
@@ -44,9 +39,9 @@ const CARDS: Record<Os, { logo: React.ReactNode; name: string; req: string; note
   },
 };
 
-function Buttons({ os, rel, primary }: { os: Os; rel: Release | null; primary: boolean }) {
+function Buttons({ os, rel, primary }: { os: DesktopOs; rel: Release | null; primary: boolean }) {
   const cls = primary ? "btn primary" : "btn";
-  const size = (k: FileKey) => rel?.files?.[k] && <em className={s.size}>{mb(rel.files[k].size)}</em>;
+  const size = (k: FileKey) => rel?.files?.[k] && <span className={s.size}>{mb(rel.files[k].size)}</span>;
   if (os === "windows")
     return (
       <a className={cls} href={FILES.windows} download>
@@ -68,10 +63,9 @@ function Buttons({ os, rel, primary }: { os: Os; rel: Release | null; primary: b
 }
 
 export function Downloads() {
-  const [os, setOs] = useState<Os>("windows");
+  const os = useDesktopOs();
   const [rel, setRel] = useState<Release | null>(null);
   useEffect(() => {
-    setOs(detect());
     fetch(`${SITE.downloads}/latest/releases.json`)
       .then((r) => (r.ok ? r.json() : null))
       .then((r: Release | null) => {
@@ -83,7 +77,7 @@ export function Downloads() {
       })
       .catch(() => {});
   }, []);
-  const other: Os = os === "windows" ? "mac" : "windows";
+  const other: DesktopOs = os === "windows" ? "mac" : "windows";
   const main = CARDS[os];
   return (
     <div className={s.wrap}>

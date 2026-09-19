@@ -24,6 +24,9 @@ Three rules shape every change:
 
 ## Running
 
+Use Node.js 24 and the pnpm version pinned in `package.json`. See [local development](docs/LOCAL-DEVELOPMENT.md)
+for platform prerequisites, environment files, a local PostgreSQL backend and synthetic demo data.
+
 ```bash
 pnpm install
 pnpm preview        # browser preview on :1420 (Node bridge instead of Tauri, no overlay)
@@ -36,6 +39,7 @@ pnpm web            # website
 
 ```bash
 pnpm typecheck && pnpm lint && pnpm format:check
+TEST_DATABASE_URL=postgresql://localhost:5432/hydian_test pnpm test
 ```
 
 CI runs the same, then `cargo fmt --check`, `cargo clippy -D warnings` and a full installer build on Windows,
