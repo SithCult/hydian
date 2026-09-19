@@ -104,19 +104,32 @@ jobs:
           workspaces: apps/desktop/src-tauri -> target
           key: ${{ matrix.target }}
       - run: pnpm install --frozen-lockfile
+      # macOS: Developer ID signing and notarisation only when the certificate secret exists. The variables must
+      # be absent, not empty, or the bundler tries to import an empty certificate; ad-hoc signing until then.
+      - name: Apple signing
+        if: runner.os == 'macOS' && env.HAS_CERT == 'true'
+        env:
+          HAS_CERT: ${{ secrets.APPLE_CERTIFICATE != '' }}
+        run: |
+          {
+            echo "APPLE_CERTIFICATE=${{ secrets.APPLE_CERTIFICATE }}"
+            echo "APPLE_CERTIFICATE_PASSWORD=${{ secrets.APPLE_CERTIFICATE_PASSWORD }}"
+            echo "APPLE_SIGNING_IDENTITY=${{ secrets.APPLE_SIGNING_IDENTITY }}"
+            echo "APPLE_ID=${{ secrets.APPLE_ID }}"
+            echo "APPLE_PASSWORD=${{ secrets.APPLE_PASSWORD }}"
+            echo "APPLE_TEAM_ID=${{ secrets.APPLE_TEAM_ID }}"
+          } >> "$GITHUB_ENV"
+      - name: Ad-hoc signing
+        if: runner.os == 'macOS' && env.HAS_CERT != 'true'
+        env:
+          HAS_CERT: ${{ secrets.APPLE_CERTIFICATE != '' }}
+        run: echo "APPLE_SIGNING_IDENTITY=-" >> "$GITHUB_ENV"
       - uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # updater artifacts (*.sig, latest.json) are signed with the project key
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-          # macOS: signed and notarised when the Developer ID secrets exist, ad-hoc signed until then
-          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
-          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
-          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY || '-' }}
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         with:
           includeUpdaterJson: true
           projectPath: apps/desktop
