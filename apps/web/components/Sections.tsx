@@ -193,6 +193,19 @@ export function Download() {
   return (
     <Reveal>
       <section id="download" className={s.download}>
+        <img
+          className={s.dlPhoto}
+          src="/photos/temple.webp"
+          srcSet="/photos/temple-800.webp 800w, /photos/temple.webp 1600w"
+          sizes="(max-width: 1000px) 100vw, 1000px"
+          width={1600}
+          height={900}
+          alt=""
+          aria-hidden
+          loading="lazy"
+          decoding="async"
+          draggable={false}
+        />
         <div className={s.dlIcon}>
           <img src="/icon.webp" width={112} height={112} alt="" draggable={false} />
         </div>
