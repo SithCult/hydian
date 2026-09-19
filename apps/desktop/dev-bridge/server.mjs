@@ -146,7 +146,15 @@ export function createBridge(roots = defaultRoots()) {
       }
       json(res, 404, { error: "unknown" });
     } catch (e) {
-      json(res, e.status ?? (e.code === "ENOENT" ? 404 : 500), { error: String(e.message ?? e) });
+      const code =
+        e.code === "ENOENT"
+          ? "not-found"
+          : e.code === "EACCES" || e.code === "EPERM"
+            ? "permission-denied"
+            : e.code === "ENOTDIR"
+              ? "not-directory"
+              : "unavailable";
+      json(res, e.status ?? (e.code === "ENOENT" ? 404 : 500), { error: String(e.message ?? e), code });
     }
   });
   return server;

@@ -173,6 +173,14 @@
 .rail-btn:hover:not(.active) {
   background: var(--srv);
 }
+.rail-btn.rail-update {
+  color: #80d8a5;
+  background: rgb(128 216 165 / 10%);
+}
+.rail-btn.rail-update.warning {
+  color: var(--accent);
+  background: var(--accent-soft);
+}
 .rail-btn .pill {
   position: absolute;
   left: -12px;
@@ -1039,6 +1047,85 @@ html[data-os="mac"] .rail {
   font-size: 12px;
   color: var(--text);
   word-break: break-all;
+}
+.about-kv > .control-label {
+  padding-top: 5px;
+}
+.update-controls {
+  min-width: 0;
+}
+.update-controls-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  min-height: 28px;
+}
+.app-version {
+  font-variant-numeric: tabular-nums;
+}
+.update-feedback {
+  margin: 7px 0 0;
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+.update-feedback.up-to-date,
+.update-feedback.ready {
+  color: #80d8a5;
+}
+.update-feedback.error {
+  color: #ffb4b4;
+}
+.update-controls progress {
+  display: block;
+  width: 100%;
+  height: 5px;
+  margin-top: 10px;
+  accent-color: var(--accent);
+}
+.privacy-policy-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.privacy-policy-link:hover {
+  color: var(--text-strong);
+}
+.privacy-policy-link:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+  border-radius: 2px;
+}
+.game-link-guide {
+  margin-top: 18px;
+  padding: 16px 18px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--accent-soft);
+  font-size: 13px;
+  line-height: 1.6;
+}
+.modal.settings .game-link-guide h3 {
+  margin: 0 0 8px;
+  color: var(--text-strong);
+  font-size: 14px;
+  text-transform: none;
+  letter-spacing: normal;
+}
+.game-link-guide p {
+  margin: 8px 0;
+}
+.game-link-guide ol {
+  margin: 12px 0;
+  padding-left: 20px;
+  list-style: decimal;
+}
+.game-link-guide li + li {
+  margin-top: 6px;
 }
 .toggle {
   display: flex;
@@ -3016,7 +3103,9 @@ html.overlay-page #root {
   align-items: center;
   justify-content: center;
   gap: 12px;
-  height: 32px;
+  min-height: 32px;
+  padding: 2px 12px;
+  flex-wrap: wrap;
   font-size: 12px;
   font-weight: 600;
   color: var(--text-strong);

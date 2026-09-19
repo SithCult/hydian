@@ -2,6 +2,8 @@ import { create } from "zustand";
 import { toast as sonner } from "sonner";
 import {
   detectPaths,
+  gameLinkFailure,
+  type GameLinkIssue,
   resolveLogsDir,
   roster,
   scanHistory,
@@ -28,7 +30,14 @@ import { applyStartMinimized, autostartEnabled, initAutostart, setAutostart } fr
 import { OverlayHost, snapshot as overlaySnapshot, type OverlaySettings, loadOverlaySettings } from "./core/overlay";
 import { locate } from "./data/maps";
 import { loadMet, type MetIndex } from "./core/met";
-import { appVersion, checkForUpdate, CHECK_EVERY_MS, installUpdate, restartApp, type UpdateState } from "./core/update";
+import {
+  appVersion,
+  checkForUpdate,
+  CHECK_EVERY_MS,
+  downloadUpdate,
+  restartApp,
+  type UpdateState,
+} from "./core/update";
 import {
   deleteEntry,
   deleteNote,
@@ -49,9 +58,10 @@ import { DEMO, demoState } from "./core/demo";
 
 export type LinkStatus = "idle" | "scanning" | "live" | "nolog" | "error";
 export type View = "map" | "registry" | "journal";
+export type SettingsTab = "game" | "overlay" | "startup" | "map" | "privacy" | "about";
 export type Modal =
   | { kind: "profile"; key: string }
-  | { kind: "settings" }
+  | { kind: "settings"; tab?: SettingsTab }
   | { kind: "characters" }
   | { kind: "notice" }
   | { kind: "offboard" }
@@ -64,7 +74,14 @@ type ToastKind = "info" | "ok" | "warn";
 export interface AppState {
   paths: Paths | null;
   pathsCustom: Partial<Paths>; // user overrides, persisted
-  link: { status: LinkStatus; file: string | null; progress: [number, number]; error?: string; lines: number };
+  link: {
+    status: LinkStatus;
+    file: string | null;
+    progress: [number, number];
+    error?: string;
+    issue?: GameLinkIssue;
+    lines: number;
+  };
   rosterList: RosterEntry[];
   myChars: CharacterSnapshot[];
   encounters: EncounterSnapshot[];
@@ -378,7 +395,7 @@ export const useApp = create<AppState>((set, get) => ({
       LS.set("paths", custom);
       await get().rescan();
     } catch (e) {
-      set({ link: { ...get().link, status: "error", error: String(e) } });
+      set({ link: { ...get().link, ...gameLinkFailure(e) } });
     }
   },
 
@@ -405,21 +422,29 @@ export const useApp = create<AppState>((set, get) => ({
   },
 
   async rescan() {
-    const { paths } = get();
+    let { paths } = get();
     if (!paths) return;
     tail?.stop();
     tail = null;
     set({ link: { status: "scanning", file: null, progress: [0, 0], lines: 0 }, live: null });
     const t0 = performance.now();
-    let ros: RosterEntry[], hist: History;
+    let ros = get().rosterList,
+      hist: History = { characters: get().myChars, encounters: get().encounters };
     try {
-      [ros, hist] = await Promise.all([
+      const custom = get().pathsCustom;
+      if (!custom.logsDir || !custom.settingsDir) {
+        paths = { ...(await detectPaths()), ...custom };
+        set({ paths });
+      }
+      const [rosterResult, historyResult] = await Promise.allSettled([
         roster(paths.settingsDir),
         scanHistory(paths.logsDir, {}, (d, t) => set({ link: { ...get().link, progress: [d, t] } })),
       ]);
+      if (rosterResult.status === "fulfilled") ros = rosterResult.value;
+      if (historyResult.status === "rejected") throw historyResult.reason;
+      hist = historyResult.value;
     } catch (e) {
-      set({ link: { ...get().link, status: "error", error: String((e as Error)?.message ?? e) } });
-      return;
+      set({ link: { ...get().link, ...gameLinkFailure(e) } });
     }
     set({
       rosterList: ros,
@@ -440,8 +465,10 @@ export const useApp = create<AppState>((set, get) => ({
       set({ activeKey: `${c.server}:${c.id}` });
     }
     tail = new Tail(paths.logsDir, {
-      onFile: (name) => set({ link: { ...get().link, status: "live", file: name } }),
-      onNoLog: () => set({ link: { ...get().link, status: "nolog", file: null } }),
+      onFile: (name) =>
+        set({ link: { ...get().link, status: "live", file: name, error: undefined, issue: undefined } }),
+      onNoLog: () =>
+        set({ live: null, link: { ...get().link, status: "nolog", file: null, error: undefined, issue: undefined } }),
       onOwner: (s, raw) => {
         const key = `${s.server ?? get().server}:${s.ownerId}`;
         set({ activeKey: key, live: { ...s } });
@@ -515,7 +542,7 @@ export const useApp = create<AppState>((set, get) => ({
           }
         }
       },
-      onError: (e) => set({ link: { ...get().link, status: "error", error: String(e) } }),
+      onError: (e) => set({ live: null, link: { ...get().link, ...gameLinkFailure(e) } }),
     });
     tail.start();
   },
@@ -554,13 +581,25 @@ export const useApp = create<AppState>((set, get) => ({
     LS.set("legend", legend);
   },
   async checkUpdate() {
-    if (get().update.phase !== "idle" && get().update.phase !== "error") return;
+    const update = get().update;
+    if (
+      update.phase === "checking" ||
+      update.phase === "available" ||
+      update.phase === "downloading" ||
+      update.phase === "ready" ||
+      update.phase === "installing" ||
+      (update.phase === "error" && update.operation === "install")
+    )
+      return;
+    set({ update: { phase: "checking" } });
     const state = await checkForUpdate();
     set({ update: state });
-    if (state.phase === "available") await installUpdate((update) => set({ update }));
+    if (state.phase === "available") await downloadUpdate((update) => set({ update }));
   },
   async restartToUpdate() {
-    await restartApp();
+    const update = get().update;
+    if (update.phase !== "ready" && !(update.phase === "error" && update.operation === "install")) return;
+    await restartApp((update) => set({ update }));
   },
   acknowledgeNotice() {
     LS.set("noticeSeen", NOTICE_VERSION);

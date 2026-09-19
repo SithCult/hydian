@@ -1,10 +1,12 @@
 // Settings: one tab per concern, Discord-style.
 import { useState } from "react";
 import { isTauri, pickFolder } from "../../core/fs";
-import { useApp } from "../../store";
+import { useApp, type SettingsTab } from "../../store";
 import { Private } from "../bits";
 import { Logo } from "../Logo";
-import { MOD, modShift } from "../../core/platform";
+import { IS_MAC, MOD, modShift } from "../../core/platform";
+import { PrivacyPolicyLink } from "../PrivacyPolicyLink";
+import { UpdateControls } from "../UpdateControls";
 import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
 import { Button } from "@/components/ui/button";
@@ -25,6 +27,7 @@ function PathRow({
   return (
     <span className="v path-row">
       <input
+        aria-label={title}
         value={draft}
         placeholder={placeholder}
         onChange={(e) => setDraft(e.target.value)}
@@ -72,8 +75,7 @@ const UPLINK_LABEL: Record<string, string> = {
   error: "Error",
 };
 
-type Tab = "game" | "overlay" | "startup" | "map" | "privacy" | "about";
-const TABS: { id: Tab; label: string }[] = [
+const TABS: { id: SettingsTab; label: string }[] = [
   { id: "game", label: "Game link" },
   { id: "overlay", label: "In-game overlay" },
   { id: "startup", label: "Startup" },
@@ -120,13 +122,19 @@ const Toggle = ({
 );
 
 export function SettingsModal({ close }: { close: () => void }) {
-  const [tab, setTab] = useState<Tab>("game");
+  const modal = useApp((s) => s.modal);
+  const openModal = useApp((s) => s.openModal);
+  const tab = modal?.kind === "settings" ? (modal.tab ?? "game") : "game";
   return (
     <div className="modal settings tabbed">
       <nav className="settings-nav">
         <div className="settings-title">Settings</div>
         {TABS.map((t) => (
-          <button key={t.id} className={tab === t.id ? "on" : ""} onClick={() => setTab(t.id)}>
+          <button
+            key={t.id}
+            className={tab === t.id ? "on" : ""}
+            onClick={() => openModal({ kind: "settings", tab: t.id })}
+          >
             {t.label}
           </button>
         ))}
@@ -164,18 +172,19 @@ function GameTab() {
   const live = useApp((s) => s.live);
   const scanMs = useApp((s) => s.scanMs);
   const [adv, setAdv] = useState(Object.keys(pathsCustom).length > 0);
+  const needsLogs = link.status === "nolog";
+  const needsPermission = link.issue === "permission-denied";
   return (
     <>
       <div className="kv">
         <span className="k">Status</span>
         <span className="v">
           <span className={`link-dot ${link.status}`} style={{ display: "inline-block", marginRight: 6 }} />
-          {LINK_LABEL[link.status] ?? link.status}
-          {link.error ? `: ${link.error}` : ""}
+          {link.error || LINK_LABEL[link.status] || link.status}
         </span>
         <span className="k">Game data</span>
         <span className="v" style={{ fontFamily: "var(--font)" }}>
-          {Object.keys(pathsCustom).filter((k) => k !== "installDir").length ? "Custom folders" : "Auto-detected"}{" "}
+          {Object.keys(pathsCustom).filter((k) => k !== "installDir").length ? "Custom folders" : "Automatic detection"}{" "}
           <Button variant="ghost" size="sm" style={{ padding: "0 6px", fontSize: 12 }} onClick={() => setAdv(!adv)}>
             {adv ? "hide" : "advanced…"}
           </Button>
@@ -205,8 +214,53 @@ function GameTab() {
           </>
         )}
       </div>
+      {(needsLogs || needsPermission) && (
+        <section className="game-link-guide" aria-labelledby="game-link-guide-title">
+          <h3 id="game-link-guide-title">
+            {needsPermission ? "Allow access to your game files" : "Enable combat logging"}
+          </h3>
+          {needsPermission ? (
+            <p>
+              Allow Hydian to read the folder containing your combat logs.
+              {IS_MAC && " On your Mac, check System Settings → Privacy & Security → Files and Folders → Hydian."} Then
+              try Rescan logs, or choose a folder you can access below.
+            </p>
+          ) : (
+            <>
+              <p>
+                {link.issue === "missing-folder"
+                  ? "Combat logging may be off, or SWTOR may be saving logs elsewhere."
+                  : "This folder has no combat logs yet. Turn on logging in SWTOR to connect your character."}
+              </p>
+              <ol>
+                <li>
+                  In SWTOR, press Esc and open <b>Preferences → Combat Logging</b>.
+                </li>
+                <li>
+                  Turn on <b>Enable Combat Logging to File</b> and apply the change.
+                </li>
+                <li>
+                  Play your character and enter combat to create a log, then choose <b>Rescan logs</b> below.
+                </li>
+              </ol>
+              {IS_MAC && (
+                <p>If you use CrossOver or Wine, choose the CombatLogs folder inside the bottle where SWTOR runs.</p>
+              )}
+            </>
+          )}
+          <Button
+            variant="secondary"
+            size="xs"
+            aria-expanded={adv}
+            aria-controls="game-folder-settings"
+            onClick={() => setAdv(!adv)}
+          >
+            {adv ? "Hide folder settings" : "Show folder settings"}
+          </Button>
+        </section>
+      )}
       {adv && (
-        <div className="box" style={{ marginTop: 10 }}>
+        <div id="game-folder-settings" className="box" style={{ marginTop: 10 }}>
           <p className="empty" style={{ marginBottom: 10 }}>
             Hydian finds these folders on its own. Change them only if your game keeps them somewhere unusual.
           </p>
@@ -227,8 +281,8 @@ function GameTab() {
         </div>
       )}
       <div style={{ marginTop: 10, display: "flex", gap: 8 }}>
-        <Button variant="secondary" size="sm" onClick={() => void rescan()}>
-          Rescan logs
+        <Button variant="secondary" size="sm" disabled={link.status === "scanning"} onClick={() => void rescan()}>
+          {link.status === "scanning" ? "Reading logs…" : "Rescan logs"}
         </Button>
         {Object.keys(pathsCustom).length > 0 && (
           <Button variant="ghost" size="sm" onClick={() => void resetPaths()}>
@@ -236,10 +290,12 @@ function GameTab() {
           </Button>
         )}
       </div>
-      <p className="note" style={{ marginTop: 12 }}>
-        Hydian reads the combat log (<b>Preferences → Combat Logging → Enable Combat Logging to File</b>) and the
-        settings folder for character names. A position arrives whenever the game logs an event.
-      </p>
+      {!needsLogs && !needsPermission && (
+        <p className="note" style={{ marginTop: 12 }}>
+          Hydian reads the combat log (<b>Preferences → Combat Logging → Enable Combat Logging to File</b>) and the
+          settings folder for character names. A position arrives whenever the game logs an event.
+        </p>
+      )}
     </>
   );
 }
@@ -370,6 +426,9 @@ function PrivacyTab() {
   return (
     <>
       <p className="note">
+        <PrivacyPolicyLink />
+      </p>
+      <p className="note">
         Sharing is per character and starts Invisible: set a character to In Character or Out of Character to put it on
         the map. Others see a name, a status and a place.{" "}
         <Button
@@ -426,10 +485,6 @@ function PrivacyTab() {
 
 function AboutTab() {
   const up = useApp((s) => s.uplink);
-  const version = useApp((s) => s.version);
-  const update = useApp((s) => s.update);
-  const checkUpdate = useApp((s) => s.checkUpdate);
-  const restart = useApp((s) => s.restartToUpdate);
   return (
     <>
       <div className="notice-brand">
@@ -438,39 +493,13 @@ function AboutTab() {
           Hydian<span>Where roleplay is happening in SWTOR</span>
         </div>
       </div>
-      <div className="kv">
-        <span className="k">Version</span>
-        <span className="v" style={{ fontFamily: "var(--font)" }}>
-          Hydian {version || "…"}
-          {isTauri() && (
-            <>
-              {" · "}
-              {update.phase === "ready" ? (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  style={{ padding: "0 4px", fontSize: 12 }}
-                  onClick={() => void restart()}
-                >
-                  Restart to update to {update.version}
-                </Button>
-              ) : update.phase === "downloading" ? (
-                `downloading ${update.version}`
-              ) : update.phase === "available" ? (
-                `${update.version} is available`
-              ) : (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  style={{ padding: "0 4px", fontSize: 12 }}
-                  onClick={() => void checkUpdate()}
-                >
-                  {update.phase === "error" ? "Could not check for updates. Try again" : "Check for updates"}
-                </Button>
-              )}
-            </>
-          )}
-        </span>
+      <div className="kv about-kv">
+        <span className="k control-label">Version</span>
+        <UpdateControls />
+        <span className="k control-label">Privacy</span>
+        <div>
+          <PrivacyPolicyLink />
+        </div>
         <span className="k">Server</span>
         <span className="v">
           <span

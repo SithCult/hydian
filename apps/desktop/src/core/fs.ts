@@ -23,6 +23,12 @@ export interface GameFS {
   read(path: string, offset: number, length: number): Promise<Uint8Array>;
 }
 
+export function fileErrorCode(error: unknown): string | undefined {
+  if (!error || typeof error !== "object") return undefined;
+  if ("code" in error && typeof error.code === "string") return error.code;
+  return "cause" in error ? fileErrorCode(error.cause) : undefined;
+}
+
 export const isTauri = (): boolean => typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
 
 export const join = (...parts: string[]) => parts.join(SEP).replace(/[\\/]+/g, SEP);
@@ -33,7 +39,7 @@ async function bridgeRequest(url: string): Promise<Response> {
   if (!response.ok) {
     const fallback = `Local game-file access failed (HTTP ${response.status})`;
     const body = await response.json().catch(() => ({ error: fallback }));
-    throw new Error(typeof body?.error === "string" ? body.error : fallback);
+    throw new Error(typeof body?.error === "string" ? body.error : fallback, { cause: body });
   }
   return response;
 }
@@ -61,11 +67,19 @@ const bridge: GameFS = {
 async function makeTauri(): Promise<GameFS> {
   const { invoke } = await import("@tauri-apps/api/core");
   const pathApi = await import("@tauri-apps/api/path");
+  async function invokeFile<T>(command: string, args: Record<string, unknown>): Promise<T> {
+    try {
+      return await invoke<T>(command, args);
+    } catch (error) {
+      const message = error && typeof error === "object" && "message" in error ? String(error.message) : String(error);
+      throw new Error(message, { cause: error });
+    }
+  }
   return {
     async roots() {
       if (IS_MAC) {
         const bottle = await crossoverRoots(await pathApi.homeDir(), (p) =>
-          invoke<DirEntry[]>("fs_read_dir", { path: p }),
+          invokeFile<DirEntry[]>("fs_read_dir", { path: p }),
         );
         if (bottle) return bottle;
       }
@@ -75,12 +89,12 @@ async function makeTauri(): Promise<GameFS> {
       };
     },
     async readDir(path, filter) {
-      const entries = await invoke<DirEntry[]>("fs_read_dir", { path });
+      const entries = await invokeFile<DirEntry[]>("fs_read_dir", { path });
       if (!filter) return entries;
       for (const e of entries) {
         if (e.isDir || !filter.test(e.name)) continue;
         try {
-          const st = await invoke<{ size: number; mtime: number }>("fs_stat", { path: join(path, e.name) });
+          const st = await invokeFile<{ size: number; mtime: number }>("fs_stat", { path: join(path, e.name) });
           e.size = st.size;
           e.mtime = st.mtime;
         } catch {
@@ -90,10 +104,10 @@ async function makeTauri(): Promise<GameFS> {
       return entries;
     },
     async stat(path) {
-      return invoke<{ size: number; mtime: number }>("fs_stat", { path });
+      return invokeFile<{ size: number; mtime: number }>("fs_stat", { path });
     },
     async read(path, offset, length) {
-      const buf = await invoke<ArrayBuffer>("fs_read", { path, offset, length });
+      const buf = await invokeFile<ArrayBuffer>("fs_read", { path, offset, length });
       return new Uint8Array(buf);
     },
   };

@@ -12,6 +12,8 @@ import { Sidebar } from "./Sidebar";
 import { Boundary } from "./Boundary";
 import { UpdateBar } from "./UpdateBar";
 import { MOD } from "../core/platform";
+import { isTauri } from "../core/fs";
+import { handleHelpAction } from "../core/help";
 import { Tip } from "./Tip";
 import { Toaster } from "@/components/ui/sonner";
 import { Button } from "@/components/ui/button";
@@ -30,6 +32,26 @@ export function App() {
   useEffect(() => {
     void boot();
   }, [boot]);
+  useEffect(() => {
+    if (!isTauri()) return;
+    let disposed = false;
+    let unlisten: (() => void) | undefined;
+    void import("@tauri-apps/api/event")
+      .then(async ({ listen }) => {
+        const stop = await listen<string>("help:action", ({ payload }) => void handleHelpAction(payload));
+        if (disposed) stop();
+        else unlisten = stop;
+      })
+      .catch(() =>
+        useApp
+          .getState()
+          .toast("Help is unavailable. Use Settings to check updates or read the privacy policy.", "warn"),
+      );
+    return () => {
+      disposed = true;
+      unlisten?.();
+    };
+  }, []);
   useEffect(() => {
     const id = setInterval(() => tick(Date.now()), 5000);
     return () => clearInterval(id);

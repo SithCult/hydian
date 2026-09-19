@@ -1,4 +1,5 @@
 import type { CSSProperties } from "react";
+import { CircleArrowDown, LoaderCircle, TriangleAlert } from "lucide-react";
 import { SERVERS } from "../data/servers";
 import { useApp } from "../store";
 import { selectCounts } from "../selectors";
@@ -17,6 +18,17 @@ export function ServerRail() {
   const server = useApp((s) => s.server);
   const selectServer = useApp((s) => s.selectServer);
   const openModal = useApp((s) => s.openModal);
+  const update = useApp((s) => s.update);
+  const updateBusy = update.phase === "available" || update.phase === "downloading" || update.phase === "installing";
+  const updateError = update.phase === "error" && update.operation !== "check";
+  const showUpdate = updateBusy || update.phase === "ready" || updateError;
+  const updateLabel = updateError
+    ? "Update needs attention"
+    : update.phase === "ready"
+      ? `Hydian ${update.version} is ready to install`
+      : update.phase === "installing"
+        ? "Installing update…"
+        : "Downloading update…";
   const counts = useApp(selectCounts);
   const myServers = new Set(useApp((s) => s.myChars).map((c) => c.server));
 
@@ -53,8 +65,25 @@ export function ServerRail() {
         );
       })}
       <div className="rail-spacer" />
+      {showUpdate && (
+        <Tip label={updateLabel} side="right">
+          <button
+            className={`rail-btn rail-update ${updateError ? "warning" : ""}`}
+            aria-label={updateLabel}
+            onClick={() => openModal({ kind: "settings", tab: "about" })}
+          >
+            {updateBusy ? (
+              <LoaderCircle size={20} className="animate-spin motion-reduce:animate-none" aria-hidden="true" />
+            ) : updateError ? (
+              <TriangleAlert size={20} aria-hidden="true" />
+            ) : (
+              <CircleArrowDown size={20} aria-hidden="true" />
+            )}
+          </button>
+        </Tip>
+      )}
       <Tip label="Settings" side="right">
-        <button className="rail-btn" onClick={() => openModal({ kind: "settings" })}>
+        <button className="rail-btn" aria-label="Settings" onClick={() => openModal({ kind: "settings" })}>
           {Icons.gear({ width: 20, height: 20 })}
         </button>
       </Tip>
