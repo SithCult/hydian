@@ -1,14 +1,73 @@
 name: Release
 
-# Tag a version (v0.2.0): installers for Windows, macOS (Apple Silicon) and macOS (Intel) are built and
-# attached to one draft release. Publish it from the Releases page once the notes are written.
+# Every change to the app on main becomes a release: the version is bumped (patch, or minor when a commit
+# since the last release says `feat:` or `minor:`), a tag is cut, the three installers are built and
+# published, and the download bucket behind dl.hydian.org gets the new files. The website and the API have
+# their own workflows and do not trigger this. Run it by hand with a bump kind to force one.
 on:
   push:
-    tags: ["v*"]
+    branches: [main]
+    paths: ["apps/desktop/**", "pnpm-lock.yaml", ".github/workflows/release.yml", ".github/workflows/publish.yml"]
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: patch, minor or major
+        default: patch
+        required: true
+
+concurrency:
+  group: release
+  cancel-in-progress: false
 
 jobs:
+  # ---------------------------------------------------------------- bump + tag
+  version:
+    name: version and tag
+    # the release commit itself must not start another release
+    if: github.event_name == 'workflow_dispatch' || !startsWith(github.event.head_commit.message, 'Release v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      version: ${{ steps.bump.outputs.version }}
+      tag: v${{ steps.bump.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Decide the bump
+        id: kind
+        env:
+          INPUT_BUMP: ${{ inputs.bump }}
+        run: |
+          kind="$INPUT_BUMP"
+          if [ -z "$kind" ]; then
+            last=$(git describe --tags --abbrev=0 --match "v*" 2>/dev/null || true)
+            if [ -n "$last" ]; then range="$last..HEAD"; else range=""; fi
+            if git log --format=%s $range | grep -qiE "^(feat|minor)(\(|:)"; then kind=minor; else kind=patch; fi
+          fi
+          echo "kind=$kind" >> "$GITHUB_OUTPUT"
+      - name: Bump, commit, tag
+        id: bump
+        env:
+          KIND: ${{ steps.kind.outputs.kind }}
+        run: |
+          v=$(node scripts/bump.mjs "$KIND")
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Release v$v"
+          git tag -a "v$v" -m "Hydian $v"
+          git push origin HEAD:main "v$v"
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+
+  # ---------------------------------------------------------------- installers, one release
   build:
     name: ${{ matrix.name }}
+    needs: version
     permissions:
       contents: write
     strategy:
@@ -30,6 +89,8 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.version.outputs.tag }}
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
@@ -60,11 +121,15 @@ jobs:
           includeUpdaterJson: true
           projectPath: apps/desktop
           args: --target ${{ matrix.target }} --bundles ${{ matrix.bundles }}
-          tagName: ${{ github.ref_name }}
-          releaseName: Hydian ${{ github.ref_name }}
-          releaseDraft: true
+          tagName: ${{ needs.version.outputs.tag }}
+          releaseName: Hydian ${{ needs.version.outputs.version }}
+          releaseDraft: false
+          prerelease: false
           releaseBody: |
             ## Downloads
+
+            [hydian.org/download](https://hydian.org/download) has the installers for Windows and macOS.
+            Installed copies update themselves.
 
             | Platform | File |
             |---|---|
@@ -72,4 +137,11 @@ jobs:
             | macOS, Apple Silicon | `Hydian_*_aarch64.dmg` |
             | macOS, Intel | `Hydian_*_x64.dmg` |
 
-            Installed copies update themselves from this release.
+  # ---------------------------------------------------------------- dl.hydian.org
+  publish:
+    name: publish downloads
+    needs: [version, build]
+    uses: ./.github/workflows/publish.yml
+    with:
+      tag: ${{ needs.version.outputs.tag }}
+    secrets: inherit

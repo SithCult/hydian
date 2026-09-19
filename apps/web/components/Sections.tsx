@@ -69,7 +69,7 @@ export function DataReadout() {
           <a className="btn primary small" href={SITE.github}>
             <GitHubLogo /> Read the source
           </a>
-          <a className="btn small" href={`${SITE.github}/hydian/blob/main/CONTRIBUTING.md`}>
+          <a className="btn small" href={`${SITE.github}/blob/main/CONTRIBUTING.md`}>
             Contribute
           </a>
         </div>
