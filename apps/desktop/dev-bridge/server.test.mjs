@@ -142,3 +142,12 @@ test("negative, fractional, unsafe and oversized reads are rejected", async (t) 
   assert.equal((await request("read", { path: log, length: "0" })).body, "");
   assert.equal((await request("read", { path: log, offset: "1000", length: "1" })).body, "");
 });
+
+test("missing directories and a file selected as a folder expose distinct stable codes", async (t) => {
+  const { request, documents, log } = await fixture(t);
+  const missing = await request("readDir", { path: path.join(documents, "CombatLogs") });
+  assert.equal(missing.status, 404);
+  assert.equal(JSON.parse(missing.body).code, "not-found");
+  const notDirectory = await request("readDir", { path: log });
+  assert.equal(JSON.parse(notDirectory.body).code, "not-directory");
+});

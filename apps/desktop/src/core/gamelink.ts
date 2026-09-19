@@ -2,7 +2,7 @@
 //  - roster():  character names per server from settings filenames
 //  - scanHistory(): last-known state of your characters from recent logs
 //  - Tail: live follow of the newest combat log
-import { gameFS, decoder, join, type DirEntry } from "./fs";
+import { gameFS, decoder, join, fileErrorCode, type DirEntry } from "./fs";
 import { SERVERS } from "../data/servers";
 import { feedChunk, newSession, type Area, type Position, type SessionState, type Sighting } from "./parser";
 
@@ -16,6 +16,30 @@ export interface Paths {
   logsDir: string;
   settingsDir: string;
   installDir?: string;
+}
+
+export type GameLinkIssue = "missing-folder" | "permission-denied" | "unavailable";
+
+class GameLinkError extends Error {
+  constructor(
+    readonly issue: GameLinkIssue,
+    message: string,
+    cause: unknown,
+  ) {
+    super(message, { cause });
+  }
+}
+
+export function gameLinkFailure(error: unknown): { status: "nolog" | "error"; issue: GameLinkIssue; error: string } {
+  if (error instanceof GameLinkError)
+    return { status: error.issue === "missing-folder" ? "nolog" : "error", issue: error.issue, error: error.message };
+  if (fileErrorCode(error) === "permission-denied")
+    return { status: "error", issue: "permission-denied", error: "Hydian needs permission to read your game files." };
+  return {
+    status: "error",
+    issue: "unavailable",
+    error: "Hydian couldn't read your game files. Check the folder and try again.",
+  };
 }
 
 export const LOG_RE = /^combat_.*\.txt$/i;
@@ -37,7 +61,17 @@ export function seedClock(s: SessionState, name: string) {
 /** Log filenames newest-first, by the timestamp in the name. No per-file stat. */
 export async function listLogs(logsDir: string): Promise<string[]> {
   const fs = await gameFS();
-  const entries = await fs.readDir(logsDir, /^$/);
+  let entries: DirEntry[];
+  try {
+    entries = await fs.readDir(logsDir, /^$/);
+  } catch (error) {
+    const code = fileErrorCode(error);
+    if (code === "not-found")
+      throw new GameLinkError("missing-folder", "The combat-log folder hasn't been found yet.", error);
+    if (code === "not-directory")
+      throw new GameLinkError("unavailable", "Choose the CombatLogs folder, rather than a file.", error);
+    throw error;
+  }
   return entries
     .filter((e) => !e.isDir && LOG_RE.test(e.name))
     .map((e) => e.name)
@@ -60,8 +94,7 @@ export async function resolveLogsDir(picked: string): Promise<{ dir: string; not
   };
   const here = await list(picked);
   const def = (await detectPaths()).logsDir;
-  if (here === null)
-    return { dir: def, note: "That folder can't be read; using the default combat-log folder instead." };
+  if (here === null) return { dir: picked, note: null };
   if (here.some((e) => !e.isDir && LOG_RE.test(e.name))) return { dir: picked, note: null };
   if (here.some((e) => e.isDir && /^CombatLogs$/i.test(e.name)))
     return { dir: join(picked, "CombatLogs"), note: "Using the CombatLogs subfolder." };
@@ -88,12 +121,7 @@ export interface RosterEntry {
 
 export async function roster(settingsDir: string): Promise<RosterEntry[]> {
   const fs = await gameFS();
-  let entries: DirEntry[];
-  try {
-    entries = await fs.readDir(settingsDir, /^$/);
-  } catch {
-    return [];
-  }
+  const entries = await fs.readDir(settingsDir, /^$/);
   const re = /^(he\d+)_(.+)_PlayerGUIState\.ini$/i;
   const out: RosterEntry[] = [];
   for (const e of entries) {
@@ -144,12 +172,7 @@ export async function scanHistory(
 ): Promise<History> {
   const { maxFiles = 12, maxAgeMs = 7 * 24 * 3600 * 1000 } = opts;
   const fs = await gameFS();
-  let names: string[];
-  try {
-    names = await listLogs(logsDir);
-  } catch (e) {
-    throw new Error(`readDir(${logsDir}) failed: ${String((e as Error)?.message ?? e)}`, { cause: e });
-  }
+  let names = await listLogs(logsDir);
   const cutoff = Date.now() - maxAgeMs;
   names = names.filter((n) => logTime(n) >= cutoff).slice(0, maxFiles);
   if (!names.length) names = (await listLogs(logsDir)).slice(0, 3); // nothing recent: fall back to the 3 newest
@@ -158,8 +181,8 @@ export async function scanHistory(
     try {
       const st = await fs.stat(join(logsDir, name));
       files.push({ name, isDir: false, size: st.size, mtime: st.mtime || logTime(name) });
-    } catch {
-      /* skip */
+    } catch (error) {
+      if (fileErrorCode(error) !== "not-found") throw error;
     }
   }
   const chars = new Map<string, CharacterSnapshot>();
@@ -180,8 +203,9 @@ export async function scanHistory(
         const nl = tail.indexOf(10);
         feedChunk(s, tail.subarray(nl + 1), (b) => decoder.decode(b));
       }
-    } catch (e) {
-      if (done === 0) throw new Error(`read(${f.name}) failed: ${String((e as Error)?.message ?? e)}`, { cause: e });
+    } catch (error) {
+      if (fileErrorCode(error) !== "not-found") throw error;
+      continue;
     }
     if (s.ownerId && s.server) {
       const key = `${s.server}:${s.ownerId}`;
@@ -239,6 +263,7 @@ export class Tail {
   private offset = 0;
   private rest: Uint8Array = new Uint8Array(0);
   private lastDirCheck = 0;
+  private failed = false;
   session = newSession();
   /** false while replaying the existing file on attach; true once caught up */
   primed = false;
@@ -277,7 +302,11 @@ export class Tail {
       if (!this.file || now - this.lastDirCheck > 5000) {
         this.lastDirCheck = now;
         const n = await this.newest();
-        if (!n && !this.file) this.ev.onNoLog?.();
+        if (!n) {
+          this.file = null;
+          this.failed = false;
+          this.ev.onNoLog?.();
+        }
         if (n && n.name !== this.file) {
           this.file = n.name;
           this.offset = 0;
@@ -294,6 +323,7 @@ export class Tail {
       const st = await fs.stat(path);
       if (st.size <= this.offset) {
         this.primed = true;
+        this.recovered();
         return;
       }
       // On first attach to a big file, jump to the last 512 KB rather than replaying a whole raid.
@@ -309,14 +339,26 @@ export class Tail {
         this.offset += nl + 1;
         this.consume(chunk.subarray(nl + 1));
         this.primed = true;
+        this.recovered();
         return;
       }
       const chunk = await fs.read(path, this.offset, Math.min(st.size - this.offset, 4 * 1024 * 1024));
       this.consume(chunk);
       if (this.offset >= st.size) this.primed = true;
+      this.recovered();
     } catch (e) {
+      this.failed = true;
+      if (fileErrorCode(e) === "not-found") this.file = null;
       this.ev.onError?.(e);
     }
+  }
+
+  private recovered() {
+    if (this.failed && this.file) {
+      this.ev.onFile?.(this.file);
+      this.ev.onTick?.(this.session);
+    }
+    this.failed = false;
   }
 
   private consume(chunk: Uint8Array) {

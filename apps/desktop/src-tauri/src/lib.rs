@@ -13,7 +13,7 @@ use std::{
     time::UNIX_EPOCH,
 };
 use tauri::{
-    menu::{Menu, MenuItem},
+    menu::{Menu, MenuItem, MenuItemKind, PredefinedMenuItem, HELP_SUBMENU_ID},
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
     Emitter, Manager, WindowEvent,
 };
@@ -23,6 +23,14 @@ use tauri::ipc::Response;
 
 #[cfg(target_os = "macos")]
 mod autostart;
+
+#[tauri::command]
+async fn open_privacy_policy() -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(|| open::that("https://hydian.org/privacy"))
+        .await
+        .map_err(|e| e.to_string())?
+        .map_err(|e| e.to_string())
+}
 
 #[tauri::command]
 fn autostart_enable(app: tauri::AppHandle) -> Result<(), String> {
@@ -36,7 +44,7 @@ fn autostart_enable(app: tauri::AppHandle) -> Result<(), String> {
     }
 }
 
-#[derive(Serialize)]
+#[derive(Debug, Serialize)]
 struct Entry {
     name: String,
     #[serde(rename = "isDir")]
@@ -51,11 +59,47 @@ struct Stat {
     mtime: f64,
 }
 
-fn allowed_file(path: &Path) -> Result<PathBuf, String> {
-    let resolved = path.canonicalize().map_err(|e| e.to_string())?;
+#[derive(Debug, Serialize)]
+struct FileError {
+    code: &'static str,
+    message: String,
+}
+
+impl From<std::io::Error> for FileError {
+    fn from(error: std::io::Error) -> Self {
+        let code = match error.kind() {
+            std::io::ErrorKind::NotFound => "not-found",
+            std::io::ErrorKind::PermissionDenied => "permission-denied",
+            std::io::ErrorKind::NotADirectory => "not-directory",
+            _ => "unavailable",
+        };
+        Self {
+            code,
+            message: error.to_string(),
+        }
+    }
+}
+
+impl From<String> for FileError {
+    fn from(message: String) -> Self {
+        Self {
+            code: "unavailable",
+            message,
+        }
+    }
+}
+
+impl From<&str> for FileError {
+    fn from(message: &str) -> Self {
+        message.to_owned().into()
+    }
+}
+
+fn allowed_file(path: &Path) -> Result<PathBuf, FileError> {
+    let resolved = path.canonicalize()?;
     allowed_name(path)?;
     allowed_name(&resolved)?;
-    if !resolved.is_file() {
+    if !std::fs::metadata(&resolved)?.is_file() {
         return Err("not a regular file".into());
     }
     Ok(resolved)
@@ -83,11 +127,12 @@ fn mtime_ms(md: &std::fs::Metadata) -> f64 {
 }
 
 #[tauri::command]
-fn fs_read_dir(path: String) -> Result<Vec<Entry>, String> {
-    let rd = std::fs::read_dir(&path).map_err(|e| format!("{path}: {e}"))?;
+fn fs_read_dir(path: String) -> Result<Vec<Entry>, FileError> {
+    let rd = std::fs::read_dir(&path)?;
     let mut out = Vec::new();
-    for e in rd.flatten() {
-        let is_dir = e.file_type().map(|t| t.is_dir()).unwrap_or(false);
+    for e in rd {
+        let e = e?;
+        let is_dir = e.file_type()?.is_dir();
         out.push(Entry {
             name: e.file_name().to_string_lossy().into_owned(),
             is_dir,
@@ -99,9 +144,9 @@ fn fs_read_dir(path: String) -> Result<Vec<Entry>, String> {
 }
 
 #[tauri::command]
-fn fs_stat(path: String) -> Result<Stat, String> {
+fn fs_stat(path: String) -> Result<Stat, FileError> {
     let p = allowed_file(Path::new(&path))?;
-    let md = std::fs::metadata(p).map_err(|e| format!("{path}: {e}"))?;
+    let md = std::fs::metadata(p)?;
     Ok(Stat {
         size: md.len(),
         mtime: mtime_ms(&md),
@@ -109,18 +154,18 @@ fn fs_stat(path: String) -> Result<Stat, String> {
 }
 
 #[tauri::command]
-fn fs_read(path: String, offset: u64, length: u64) -> Result<Response, String> {
+fn fs_read(path: String, offset: u64, length: u64) -> Result<Response, FileError> {
     let p = allowed_file(Path::new(&path))?;
     // File::open is read-only and shares the handle with the game (FILE_SHARE_READ|WRITE on Windows).
-    let mut f = File::open(p).map_err(|e| format!("{path}: {e}"))?;
-    f.seek(SeekFrom::Start(offset)).map_err(|e| e.to_string())?;
+    let mut f = File::open(p)?;
+    f.seek(SeekFrom::Start(offset))?;
     let mut buf = vec![0u8; length.min(8 * 1024 * 1024) as usize];
     let mut n = 0;
     while n < buf.len() {
         match f.read(&mut buf[n..]) {
             Ok(0) => break,
             Ok(k) => n += k,
-            Err(e) => return Err(e.to_string()),
+            Err(e) => return Err(e.into()),
         }
     }
     buf.truncate(n);
@@ -129,7 +174,7 @@ fn fs_read(path: String, offset: u64, length: u64) -> Result<Response, String> {
 
 #[cfg(test)]
 mod tests {
-    use super::allowed_file;
+    use super::{allowed_file, fs_read_dir, FileError};
     use std::{
         fs,
         path::PathBuf,
@@ -156,6 +201,27 @@ mod tests {
         fn drop(&mut self) {
             let _ = fs::remove_dir_all(&self.0);
         }
+    }
+
+    #[test]
+    fn directory_errors_keep_machine_readable_codes() {
+        let fixture = Fixture::new();
+        assert_eq!(
+            fs_read_dir(fixture.0.join("missing").to_string_lossy().into())
+                .unwrap_err()
+                .code,
+            "not-found"
+        );
+        let file = fixture.0.join("combat_test.txt");
+        fs::write(&file, "synthetic fixture").unwrap();
+        assert_eq!(
+            fs_read_dir(file.to_string_lossy().into()).unwrap_err().code,
+            "not-directory"
+        );
+        assert_eq!(
+            FileError::from(std::io::Error::from(std::io::ErrorKind::PermissionDenied)).code,
+            "permission-denied"
+        );
     }
 
     #[test]
@@ -234,6 +300,33 @@ fn show_main(app: &tauri::AppHandle) {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .menu(|app| {
+            let menu = Menu::default(app)?;
+            if let Some(MenuItemKind::Submenu(help)) = menu.get(HELP_SUBMENU_ID) {
+                help.append_items(&[
+                    &MenuItem::with_id(
+                        app,
+                        "help-about",
+                        format!("Hydian {}", app.package_info().version),
+                        true,
+                        None::<&str>,
+                    )?,
+                    &MenuItem::with_id(app, "help-update", "Check for Updates…", true, None::<&str>)?,
+                    &PredefinedMenuItem::separator(app)?,
+                    &MenuItem::with_id(app, "help-privacy", "Privacy Policy…", true, None::<&str>)?,
+                ])?;
+            }
+            Ok(menu)
+        })
+        .on_menu_event(|app, event| {
+            let id = event.id.as_ref();
+            if matches!(id, "help-about" | "help-update" | "help-privacy") {
+                if id != "help-privacy" {
+                    show_main(app);
+                }
+                let _ = app.emit_to("main", "help:action", id);
+            }
+        })
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_autostart::init(
             tauri_plugin_autostart::MacosLauncher::LaunchAgent,
@@ -248,9 +341,15 @@ pub fn run() {
             fs_read,
             launched_minimized,
             is_game_running,
-            autostart_enable
+            autostart_enable,
+            open_privacy_policy
         ])
         .setup(|app| {
+            // The game overlay should not inherit the main window's menu bar.
+            #[cfg(not(target_os = "macos"))]
+            if let Some(overlay) = app.get_webview_window("overlay") {
+                overlay.remove_menu()?;
+            }
             #[cfg(all(target_os = "macos", not(debug_assertions)))]
             if let Err(e) = autostart::migrate(app.handle()) {
                 eprintln!("Could not associate the login item with Hydian: {e}");
