@@ -34,7 +34,8 @@ export function Starfield() {
     const accent = () => getComputedStyle(document.documentElement).getPropertyValue("--accent-2").trim() || "#f6e3b4";
     let t0 = performance.now();
     const draw = (t: number) => {
-      const dt = (t - t0) / 1000;
+      // a hidden tab or a route change can leave a gap of seconds between frames: never let one frame jump far
+      const dt = Math.min(0.05, (t - t0) / 1000);
       t0 = t;
       tx += (mx - tx) * 0.04;
       ty += (my - ty) * 0.04;
@@ -44,7 +45,7 @@ export function Starfield() {
       const shift = (reduced ? 0 : sc) * 0.18 * dpr(); // a fifth of the page's speed at the nearest depth
       for (const s of stars) {
         s.y -= (reduced ? 0 : 6) * s.z * dt * dpr();
-        if (s.y < -4) s.y = H + 4;
+        if (s.y < 0) s.y += H;
         const px = s.x + tx * s.z * 40 * dpr(),
           py = (((s.y - shift * s.z + ty * s.z * 40 * dpr()) % H) + H) % H;
         ctx.globalAlpha = 0.25 + 0.6 * s.z * (0.6 + 0.4 * Math.sin(t / 900 + s.tw));

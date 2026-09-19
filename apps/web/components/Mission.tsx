@@ -22,6 +22,19 @@ export function Mission() {
         </p>
         <p className={s.last}>Hydian gives you that one missing thing, so the open world can be busy again.</p>
       </Reveal>
+      <Reveal className={s.photo} delay={0.1}>
+        <img
+          src="/photos/cave.webp"
+          srcSet="/photos/cave-900.webp 900w, /photos/cave.webp 1800w"
+          sizes="(max-width: 1160px) 100vw, 1160px"
+          width={1800}
+          height={787}
+          alt="A circle of roleplayers gathered in a cave, in game"
+          loading="lazy"
+          decoding="async"
+        />
+        <span className={s.cap}>Out in the world, where it started.</span>
+      </Reveal>
     </section>
   );
 }
