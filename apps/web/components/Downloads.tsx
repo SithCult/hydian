@@ -147,7 +147,7 @@ export function Downloads() {
             <li>Turn on combat logging in the game: Preferences, Combat Logging, Enable Combat Logging to File.</li>
             <li>
               Every release and its notes: <a href={SITE.releases}>GitHub releases</a>. Source:{" "}
-              <a href={SITE.github}>github.com/SithCult</a>.
+              <a href={SITE.github}>github.com/SithCult/hydian</a>.
             </li>
           </ul>
         </div>

@@ -79,8 +79,8 @@ pnpm -C apps/desktop tauri build   # installer
 ```
 
 CI runs `pnpm typecheck`, `pnpm lint` and `pnpm format:check`, then builds the installers for Windows, macOS
-(Apple Silicon) and macOS (Intel) on every push. `main` publishes a rolling
-[nightly](https://github.com/SithCult/hydian/releases/tag/nightly); a `v*` tag produces a draft release.
+(Apple Silicon) and macOS (Intel) on every push. Every change to `apps/desktop` on `main` becomes a release on
+its own: the version is bumped (patch, or minor when a commit says `feat:`), tagged, built and published.
 
 The app talks to the Hydian backend (`DEFAULT_SERVER_URL` in `apps/desktop/src/store.ts`). Artwork comes from
 `ASSET_BASE` (`apps/desktop/src/data/maps.ts`) in production and from `apps/desktop/public/` in dev;
@@ -95,7 +95,7 @@ _advanced…_ sets both by hand. Combat logging is switched on in the game under
 
 ### Releases and updates
 
-A `v*` tag builds the installers and a draft release; publishing it puts them on [hydian.org/download](https://hydian.org/download).
+Releases are cut by CI from `main` (`release.yml`) and land on [hydian.org/download](https://hydian.org/download).
 Installed copies check for a new version on start and every six hours, download it in the background and offer a
 restart (`apps/desktop/src/core/update.ts`, `tauri-plugin-updater`); updates are signed, the public key is in
 `tauri.conf.json`. macOS gets the native traffic lights over Hydian's own chrome, a menu-bar icon, autostart and the

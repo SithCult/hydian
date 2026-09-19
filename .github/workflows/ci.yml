@@ -119,30 +119,3 @@ jobs:
             bin=$(find apps/desktop/src-tauri/target/${{ matrix.target }}/release -maxdepth 1 -type f \( -name hydian -o -name hydian.exe \) | head -1)
             [ -n "$bin" ] && echo "| binary $(basename "$bin") | $(du -h "$bin" | cut -f1) |"
           } >> "$GITHUB_STEP_SUMMARY"
-
-  # ---------------------------------------------------------------- rolling pre-release from main
-  nightly:
-    name: nightly pre-release
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs: desktop
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/download-artifact@v4
-        with:
-          path: dist
-          merge-multiple: true
-      - name: Move the nightly tag to this commit
-        run: |
-          git tag -f nightly
-          git push -f origin nightly
-      - uses: softprops/action-gh-release@v2
-        with:
-          tag_name: nightly
-          name: Nightly (${{ github.sha }})
-          prerelease: true
-          body: |
-            Built from `main` at ${{ github.sha }}. Unstable by definition; use a tagged release unless you want to test.
-          files: dist/*
