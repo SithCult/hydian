@@ -258,8 +258,9 @@ jobs:
         run: |
           if (!$env:WINDOWS_SIGNING_SUBJECT) { throw 'Configure the Windows signing provider and WINDOWS_SIGNING_SUBJECT before releasing.' }
           $root = 'apps/desktop/src-tauri/target/${{ matrix.target }}/release'
-          $files = @((Get-Item "$root/hydian.exe")) + @(Get-ChildItem "$root/bundle/nsis/*-setup.exe")
-          if ($files.Count -ne 2) { throw 'Expected the app executable and one Windows installer.' }
+          # The signing hook verifies each packaged executable; Tauri then restores the unsigned build file.
+          $files = @(Get-ChildItem "$root/bundle/nsis/*-setup.exe")
+          if ($files.Count -ne 1) { throw 'Expected one Windows installer.' }
           foreach ($file in $files) {
             $signature = Get-AuthenticodeSignature $file.FullName
             if ($signature.Status -ne 'Valid' -or !$signature.TimeStamperCertificate -or $signature.SignerCertificate.Subject -ne $env:WINDOWS_SIGNING_SUBJECT) {
