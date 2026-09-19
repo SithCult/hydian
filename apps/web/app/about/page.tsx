@@ -56,11 +56,11 @@ export default function About() {
               sizes="(max-width: 720px) 100vw, 720px"
               width={1600}
               height={900}
-              alt="Guild members walking across a plaza on Dromund Kaas, nameplates showing"
+              alt="Guild members walking through the Sith Academy on Korriban, nameplates showing"
               loading="lazy"
               decoding="async"
             />
-            <figcaption>Dromund Kaas, guild night.</figcaption>
+            <figcaption>Sith Academy, Korriban, 2014.</figcaption>
           </figure>
           <figure>
             <img
@@ -71,7 +71,7 @@ export default function About() {
               loading="lazy"
               decoding="async"
             />
-            <figcaption>Ilum, years ago. The screenshot is as old as the memory.</figcaption>
+            <figcaption>Ilum, 2013.</figcaption>
           </figure>
         </div>
         <p>
