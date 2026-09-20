@@ -90,8 +90,9 @@ update features require the native app.
 
 CI runs types, lint, formatting, JavaScript regressions against an isolated Postgres database, native Rust tests,
 and frontend builds, then builds the installers for Windows, macOS
-(Apple Silicon) and macOS (Intel) on every push. Changes to `apps/desktop` on `main` start a release:
-the version is bumped (patch, or minor when a commit says `feat:`), tagged and built. Publication requires
+(Apple Silicon) and macOS (Intel) on every pull request and push to `main`. To release, run
+`node scripts/bump.mjs patch` (or `minor` / `major`) on a PR branch and commit the version files.
+After that PR is merged, CI tags and builds the reviewed commit. Publication requires
 maintainer approval and successful signing, notarization and updater-signature checks for every platform.
 
 The app defaults to the hosted Hydian backend and artwork. For a local API, create a PostgreSQL database, copy
