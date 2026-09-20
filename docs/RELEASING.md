@@ -4,19 +4,23 @@ Hydian distributes a Windows installer and macOS disk images. Operating-system s
 
 ## Release flow
 
-Desktop changes on `main`, or a manual **Release** run on `main`, follow these steps:
+Prepare a release on a pull-request branch with `node scripts/bump.mjs patch` (or `minor` / `major`). Commit all four changed version files and merge the reviewed PR after CI passes. Changes to these files on `main`, or a manual **Release** run on `main`, follow these steps:
 
 1. Run the shared type, lint, format, test and frontend-build checks.
-2. Bump the version, commit and tag it, then compile Windows x64, macOS Apple Silicon and macOS Intel without signing credentials.
+2. Check that all four version files agree and tag the exact merged commit. Compile Windows x64, macOS Apple Silicon and macOS Intel without signing credentials. Release automation never commits or pushes to `main`.
 3. Wait for approval in the GitHub `release` environment. Fresh runners restore the compiled files, install dependencies without lifecycle scripts, and bundle them without rebuilding or running bundle hooks.
 4. Sign and verify each platform. Upload to a GitHub **draft** release. Signing jobs run sequentially because the Tauri action merges one updater manifest.
-5. Require all platform jobs to pass. Check the manifest, required assets and updater signatures against the public key in the tagged configuration before publishing GitHub and the download bucket.
+5. Require all platform jobs to pass and approval in the `downloads` environment. Check the manifest, required assets and updater signatures against the public key in the reviewed configuration before publishing GitHub and the download bucket.
 
-A missing credential or failed verification blocks publication. Local and pull-request builds can remain unsigned/ad-hoc. Failed runs may leave a version commit, tag and draft assets; fix the configuration and rerun failed jobs in that same run. The download-publication workflow has no independent manual bypass.
+A missing credential or failed verification blocks publication. Local and pull-request builds can remain unsigned/ad-hoc. A dependency-only push with an already tagged version skips the release; manual runs reject a version tagged at another commit. Failed runs may leave a tag and draft assets. Fix the configuration and rerun failed jobs in that same run; retries accept a tag only when it still identifies that run's commit. If fixing source code requires another commit, bump the version in a new PR.
+
+Published GitHub releases are immutable. After publication, retry only a failed download-publication job; rebuilding or signing again cannot replace published assets. The download-publication workflow has no independent manual bypass.
 
 ## GitHub configuration
 
 Create a `release` environment with a required maintainer reviewer and a deployment-branch rule allowing only `main`. Allow self-review if the project has one maintainer. Review the workflow and scripts at the proposed release before approving it.
+
+Protect `main` with required pull requests, passing CI checks and resolved conversations; block force-pushes and deletion. No release-bot branch-protection bypass is needed. Create `downloads` and `website` environments restricted to `main`, with a required maintainer reviewer, for the corresponding publishing jobs.
 
 Put the following values in **environment secrets**, not repository-wide secrets:
 
@@ -39,7 +43,7 @@ Put the following values in **environment secrets**, not repository-wide secrets
 | `AZURE_SIGNING_PROFILE` | Public Trust certificate-profile name |
 | `WINDOWS_SIGNING_SUBJECT` | Exact certificate Subject from the validated profile |
 
-The three existing `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` and `R2_ACCOUNT_ID` repository secrets are passed only to the publication workflow. Remove duplicate repository-level signing secrets after their environment replacements have been saved and checked; environment protection does not restrict copies held at repository scope.
+Store `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` and `R2_ACCOUNT_ID` in the `downloads` environment. Store `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` in `website`. Remove their repository-level copies after saving and checking the environment replacements; environment protection does not restrict copies held at repository scope. Pull-request workflows must not receive production credentials, even when the PR comes from a branch in this repository.
 
 Actions are pinned to commits. Credentials are scoped to the steps that need them, checkout credentials are not retained on build/signing runners, and Azure uses short-lived GitHub OIDC tokens. Identifiers are stored as secrets to mask them in ordinary logs. Keep debug tracing and environment dumps disabled. GitHub masking is a precaution, not a boundary against malicious approved workflow code; maintainers and release dependencies remain trusted.
 

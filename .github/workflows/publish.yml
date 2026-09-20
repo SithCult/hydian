@@ -7,13 +7,6 @@ on:
       tag:
         type: string
         required: true
-    secrets:
-      R2_ACCESS_KEY_ID:
-        required: true
-      R2_SECRET_ACCESS_KEY:
-        required: true
-      R2_ACCOUNT_ID:
-        required: true
 
 env:
   BUCKET: hydian-downloads
@@ -22,12 +15,13 @@ jobs:
   publish:
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    environment: downloads
     permissions:
       contents: write
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
-          ref: ${{ inputs.tag }}
+          ref: ${{ github.sha }}
           persist-credentials: false
       - name: Install updater signature verifier
         run: |

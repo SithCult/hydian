@@ -14,7 +14,7 @@
     "web": "pnpm -C apps/web dev",
     "test:bridge": "node --test apps/desktop/dev-bridge/server.test.mjs",
     "test:desktop": "node --test apps/desktop/test/*.test.mjs",
-    "test": "pnpm test:bridge && pnpm test:desktop && pnpm -F @hydian/api test",
+    "test": "node --test scripts/release-version.test.mjs && pnpm test:bridge && pnpm test:desktop && pnpm -F @hydian/api test",
     "build": "pnpm -r --if-present build",
     "typecheck": "pnpm -r --if-present typecheck",
     "lint": "eslint apps/desktop/src apps/api/src apps/web/app apps/web/components apps/web/lib",
@@ -28,7 +28,8 @@
     "eslint-plugin-react-refresh": "^0.5.7",
     "prettier": "^3.9.7",
     "typescript": "^5.9.3",
-    "typescript-eslint": "^8.70.0"
+    "typescript-eslint": "^8.70.0",
+    "wrangler": "4.135.0"
   },
   "type": "module"
 }
