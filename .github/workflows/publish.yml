@@ -1,15 +1,33 @@
 name: Publish downloads
 
-# Called only after all release targets pass signature verification. Retry failed jobs in Release to republish.
+# Release calls this after signing verification; manual recovery accepts only the latest immutable release.
 on:
+  workflow_dispatch:
+    inputs:
+      published_tag:
+        description: Published release to restore to downloads
+        type: string
+        required: true
   workflow_call:
     inputs:
       tag:
         type: string
         required: true
+    secrets:
+      R2_ACCESS_KEY_ID:
+        required: false
+      R2_SECRET_ACCESS_KEY:
+        required: false
+      R2_ACCOUNT_ID:
+        required: false
+
+concurrency:
+  group: publish-downloads
+  cancel-in-progress: false
 
 env:
   BUCKET: hydian-downloads
+  TAG: ${{ inputs.tag || inputs.published_tag }}
 
 jobs:
   publish:
@@ -19,9 +37,19 @@ jobs:
     permissions:
       contents: write
     steps:
+      - name: Require publishing credentials
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+        run: |
+          for name in R2_ACCESS_KEY_ID R2_SECRET_ACCESS_KEY R2_ACCOUNT_ID; do
+            [ -n "${!name}" ] || { echo "Missing downloads secret: $name" >&2; exit 1; }
+          done
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.sha }}
+          fetch-depth: 0
           persist-credentials: false
       - name: Install updater signature verifier
         run: |
@@ -30,10 +58,16 @@ jobs:
       - name: Download release assets
         env:
           GH_TOKEN: ${{ github.token }}
-          TAG: ${{ inputs.tag }}
+          RECOVER_PUBLISHED: ${{ inputs.published_tag != '' }}
         run: |
           set -euo pipefail
           [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo 'Invalid release tag.' >&2; exit 1; }
+          test "$TAG" = "v$(jq -r .version apps/desktop/src-tauri/tauri.conf.json)"
+          if [ "$RECOVER_PUBLISHED" = true ]; then
+            git merge-base --is-ancestor "$TAG" HEAD
+            gh api "repos/$GITHUB_REPOSITORY/releases/latest" | jq -e --arg tag "$TAG" \
+              '.tag_name == $tag and .draft == false and .prerelease == false and .immutable == true' > /dev/null
+          fi
           mkdir -p out/latest "out/$TAG"
           gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --dir assets
           jq -r '.plugins.updater.pubkey' apps/desktop/src-tauri/tauri.conf.json | base64 --decode > updater.pub
@@ -78,9 +112,9 @@ jobs:
           cat out/latest/releases.json
 
       - name: Publish verified GitHub release
+        if: inputs.published_tag == ''
         env:
           GH_TOKEN: ${{ github.token }}
-          TAG: ${{ inputs.tag }}
         run: gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --draft=false --latest
 
       - name: Upload to R2
@@ -89,7 +123,6 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           AWS_DEFAULT_REGION: auto
           ENDPOINT: https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com
-          TAG: ${{ inputs.tag }}
         run: |
           set -eu
           # versioned copies never change
