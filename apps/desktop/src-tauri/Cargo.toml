@@ -1,6 +1,6 @@
 [package]
 name = "hydian"
-version = "0.1.7"
+version = "0.1.8"
 description = "Hydian. SWTOR roleplay companion (read-only game link)"
 edition = "2021"
 
