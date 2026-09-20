@@ -17,7 +17,7 @@ function useCycle(n: number, ms: number) {
 const STATUS = [
   { key: "ic", label: "In Character", hint: "approach in character", c: "var(--ic)" },
   { key: "ooc", label: "Out of Character", hint: "on the map, not roleplaying", c: "var(--ooc)" },
-  { key: "off", label: "Invisible", hint: "off the map", c: "#6d7286" },
+  { key: "off", label: "Invisible", hint: "off public lists", c: "#6d7286" },
 ];
 
 export function StatusDemo() {
@@ -81,13 +81,6 @@ export function RegistryDemo() {
           </i>
         </div>
       ))}
-      <div className={`${s.row} ${s.ghostRow}`}>
-        <span className="avatar ghost">?</span>
-        <div>
-          <b>Sivelk Vim</b>
-          <span>seen 8 min ago · not on Hydian</span>
-        </div>
-      </div>
     </div>
   );
 }

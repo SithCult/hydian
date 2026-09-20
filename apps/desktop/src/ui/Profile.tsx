@@ -46,6 +46,16 @@ import { usualAreas, type MetEntry } from "../core/met";
 import { Tip } from "./Tip";
 import { Button } from "@/components/ui/button";
 import { placeLabel } from "../data/places";
+import {
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { CLASSES } from "../data/servers";
 import { FactionMark } from "./bits";
 
@@ -92,13 +102,13 @@ function MetCard({ e, name }: { e: MetEntry; name: string }) {
 /**
  * Character profile. Nothing on it is self-authored text: identity comes from the game log
  * (name, server, class), presence from the log's timestamps, status from a fixed list.
- * Unregistered characters (seen in someone's log) show only name, server and last seen.
  */
 export function ProfileModal({ p, close }: { p: Player; close: () => void }) {
   const me = useApp(selectMe);
   const setActive = useApp((s) => s.setActive);
   const setStatus = useApp((s) => s.setStatus);
   const setLfrp = useApp((s) => s.setLfrp);
+  const busy = useApp((s) => !!s.characterActions[p.key]);
   const { status: myStatus, lfrp: myLfrp } = useApp(selectMyStatus);
   const selectPlanet = useApp((s) => s.selectPlanet);
   const selectServer = useApp((s) => s.selectServer);
@@ -135,83 +145,13 @@ export function ProfileModal({ p, close }: { p: Player; close: () => void }) {
   const presence = presenceOf(p.lastActive);
   const when = p.lastActive ? ago(p.lastActive) : "never";
 
-  // ---------------------------------------------------------------- unregistered: name + last seen only
-  if (p.isSeen) {
-    return (
-      <div className="modal profile" style={{ "--h": hue } as CSSProperties}>
-        <div className="banner ghost">
-          <Button variant="ghost" size="icon-sm" className="close" onClick={close}>
-            {Icons.x()}
-          </Button>
-        </div>
-        <div className="prof-head">
-          <Avatar p={{ name: p.name, hue }} size="lg" ghost />
-          <div className="title">
-            <h2>
-              {p.name} <span className="srv">{SERVER_NAMES[p.server] ?? p.server}</span>
-            </h2>
-            <div className="meta">
-              <span className="chip ghost">Not on Hydian</span>
-              {isFriend && (
-                <span className="chip friend">
-                  <i>{Icons.friendOn({ width: 11, height: 11 })}</i>Friend
-                  {friend?.via ? <em> · with {friend.via}</em> : null}
-                </span>
-              )}
-            </div>
-          </div>
-          <div className="prof-actions">
-            <Tip label="A journal entry with this person already in it">
-              <Button variant="secondary" size="sm" onClick={() => startEntryWith(p)}>
-                {Icons.book({ width: 14, height: 14 })} Journal
-              </Button>
-            </Tip>
-            {followBtn}
-          </div>
-        </div>
-        <div className="prof cols scroll">
-          <div className="col-main">
-            <div className="facts">
-              <div className="fact">
-                <span className="k">Last seen</span>
-                <span className="v">{when}</span>
-              </div>
-              <div className="fact">
-                <span className="k">Seen where</span>
-                <span className="v">
-                  {planet ? (
-                    <>
-                      <PlanetIcon slug={planet.slug} size={18} faction={planet.faction} /> {planet.name}
-                    </>
-                  ) : (
-                    <>
-                      <PlaceIcon areaId={p.planetId} areaName={p.areaName} size={18} />{" "}
-                      {placeLabel(p.planetId, p.areaName)}
-                    </>
-                  )}
-                </span>
-              </div>
-            </div>
-            {met && <MetCard e={met} name={p.name} />}
-          </div>
-          <div className="col-notes">
-            <NotesCard p={p} />
-          </div>
-        </div>
-        <div className="foot">
-          <span style={{ flex: 1 }} />
-          <Button variant="secondary" size="sm" onClick={close}>
-            Close
-          </Button>
-        </div>
-      </div>
-    );
-  }
-
   // ---------------------------------------------------------------- registered
   const bannerIcon = planet ? planetIcon(planet.slug) : undefined;
   return (
-    <div className="modal profile" style={{ "--h": hue } as CSSProperties}>
+    <div
+      className="modal profile"
+      style={{ "--h": hue, ...(own ? { width: "min(620px, calc(100vw - 40px))" } : {}) } as CSSProperties}
+    >
       <div className="banner">
         {bannerIcon && <img className="banner-planet" src={bannerIcon} alt="" draggable={false} />}
         <Button variant="ghost" size="icon-sm" className="close" onClick={close}>
@@ -228,7 +168,7 @@ export function ProfileModal({ p, close }: { p: Player; close: () => void }) {
           <div className="meta">
             <span className="srv">{SERVER_NAMES[p.server] ?? p.server}</span>
             <span className="dot" />
-            <span className="chip reg">On Hydian</span>
+            <span className="chip reg">{own && p.status === "invisible" ? "Private" : "On Hydian"}</span>
             {isFriend && (
               <span className="chip friend">
                 <i>{Icons.friendOn({ width: 11, height: 11 })}</i>Friend
@@ -254,7 +194,7 @@ export function ProfileModal({ p, close }: { p: Player; close: () => void }) {
           {followBtn}
         </div>
       </div>
-      <div className="prof cols scroll">
+      <div className="prof cols scroll" style={own ? { gridTemplateColumns: "1fr" } : undefined}>
         <div className="col-main">
           <div className="facts">
             <div className="fact">
@@ -290,7 +230,8 @@ export function ProfileModal({ p, close }: { p: Player; close: () => void }) {
                       key={k}
                       className={`opt ${myStatus === k ? "on" : ""}`}
                       style={{ "--sc": STATUS_META[k].color } as CSSProperties}
-                      onClick={() => setStatus(k)}
+                      disabled={busy}
+                      onClick={() => void setStatus(k)}
                     >
                       <i className="d" />
                       {STATUS_META[k].label}
@@ -299,6 +240,7 @@ export function ProfileModal({ p, close }: { p: Player; close: () => void }) {
                   <button
                     className={`opt ${myLfrp ? "on" : ""}`}
                     style={{ "--sc": LFRP_COLOR } as CSSProperties}
+                    disabled={busy}
                     onClick={() => setLfrp(!myLfrp)}
                   >
                     <i className="d" />
@@ -355,6 +297,7 @@ export function ProfileModal({ p, close }: { p: Player; close: () => void }) {
         )}
       </div>
       <div className="foot">
+        {own && <RemoveCharacter p={p} />}
         {own && !active && (
           <Button
             variant="secondary"
@@ -373,5 +316,61 @@ export function ProfileModal({ p, close }: { p: Player; close: () => void }) {
         </Button>
       </div>
     </div>
+  );
+}
+
+function RemoveCharacter({ p }: { p: Player }) {
+  const remove = useApp((s) => s.removeCharacter);
+  const busy = useApp((s) => !!s.characterActions[p.key]);
+  const [open, setOpen] = useState(false);
+  const [error, setError] = useState("");
+  return (
+    <AlertDialog
+      open={open}
+      onOpenChange={(value) => {
+        if (!busy) {
+          setOpen(value);
+          setError("");
+        }
+      }}
+    >
+      <AlertDialogTrigger asChild>
+        <Button variant="ghost" size="sm" disabled={busy}>
+          Remove from Hydian…
+        </Button>
+      </AlertDialogTrigger>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Remove {p.name} from Hydian?</AlertDialogTitle>
+          <AlertDialogDescription>
+            Remove the character data this device sent to Hydian. Your game files, notes and journal stay on this
+            device. Sharing stays off until you choose In Character or Out of Character again.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        {error && (
+          <p role="alert" className="text-sm text-destructive">
+            {error}
+          </p>
+        )}
+        <AlertDialogFooter>
+          <AlertDialogCancel disabled={busy}>Cancel</AlertDialogCancel>
+          <Button
+            variant="destructive"
+            disabled={busy}
+            onClick={async () => {
+              setError("");
+              try {
+                await remove(p.key);
+                setOpen(false);
+              } catch {
+                setError("Could not finish removing this character. Sharing is off. Please try again.");
+              }
+            }}
+          >
+            {busy ? "Removing…" : "Remove character"}
+          </Button>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   );
 }

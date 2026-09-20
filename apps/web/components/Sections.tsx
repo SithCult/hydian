@@ -48,14 +48,14 @@ export function DataReadout() {
               </i>
             </div>
             <p className={s.dataNote}>
-              Shared characters appear with their status and in-game location. Your note text and journal stay on your
-              device; friend connections are also stored by the service.
+              Active characters set to In Character or Out of Character appear with their status and in-game location.
+              Your note text and journal stay on your device; friend connections are also stored by the service.
             </p>
           </div>
         </Reveal>
       </div>
       <Reveal className={s.dataFoot} delay={0.2}>
-        Settings › Privacy lets you erase your installation&apos;s links to uploaded records. Read about uploads,
+        Remove a character from its profile, or delete what this device sent in Settings › Privacy. Read about uploads,
         retained gameplay samples and your controls: <a href="/privacy">Privacy</a>.
       </Reveal>
       <Reveal className={s.source} delay={0.25}>
@@ -156,8 +156,8 @@ const FAQ: { q: string; a: React.ReactNode }[] = [
     a: "For a character you set to In Character or Out of Character: its name, server, planet, position and status while you play. Class is sent along but never shown. There are no bios and no free text.",
   },
   {
-    q: "What about people who are not on Hydian?",
-    a: "When your log mentions someone nearby, targeting or grouping can add a dashed pin with a name and last-seen time. These observations come from your own log and can include players who are Invisible or use no Hydian app. Sightings also upload while your reporting character is shared; see Privacy for details.",
+    q: "Who appears on the map and in the registry?",
+    a: "Active characters whose players have chosen In Character or Out of Character. Invisible characters stay out of public lists. Your own characters remain available privately in My characters.",
   },
   {
     q: "Does it run on a Mac?",

@@ -1100,33 +1100,6 @@ html[data-os="mac"] .rail {
   outline-offset: 3px;
   border-radius: 2px;
 }
-.game-link-guide {
-  margin-top: 18px;
-  padding: 16px 18px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  background: var(--accent-soft);
-  font-size: 13px;
-  line-height: 1.6;
-}
-.modal.settings .game-link-guide h3 {
-  margin: 0 0 8px;
-  color: var(--text-strong);
-  font-size: 14px;
-  text-transform: none;
-  letter-spacing: normal;
-}
-.game-link-guide p {
-  margin: 8px 0;
-}
-.game-link-guide ol {
-  margin: 12px 0;
-  padding-left: 20px;
-  list-style: decimal;
-}
-.game-link-guide li + li {
-  margin-top: 6px;
-}
 .toggle {
   display: flex;
   align-items: center;
@@ -1240,19 +1213,6 @@ kbd {
   padding: 1px 5px;
   border-radius: 3px;
   color: var(--text-muted);
-}
-
-.path-row {
-  display: flex;
-  gap: 6px;
-  align-items: center;
-}
-.path-row input {
-  flex: 1;
-  font-family: var(--mono);
-  font-size: 12px;
-  padding: 5px 8px;
-  min-width: 0;
 }
 
 .picon {
@@ -2272,6 +2232,7 @@ html.overlay-page #root {
 .settings-main {
   flex: 1;
   min-width: 0;
+  min-height: 0;
   display: flex;
   flex-direction: column;
 }

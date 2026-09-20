@@ -11,6 +11,7 @@ import { ServerRail } from "./ServerRail";
 import { Sidebar } from "./Sidebar";
 import { Boundary } from "./Boundary";
 import { UpdateBar } from "./UpdateBar";
+import { GameLinkBanner } from "./GameLink";
 import { MOD } from "../core/platform";
 import { isTauri } from "../core/fs";
 import { handleHelpAction } from "../core/help";
@@ -81,6 +82,7 @@ export function App() {
       <Sidebar />
       <main className="main">
         <UpdateBar />
+        <GameLinkBanner />
         <header className="topbar" data-tauri-drag-region>
           <h1>
             {view === "map" && planet && <PlanetIcon slug={planet.slug} size={26} faction={planet.faction} />}

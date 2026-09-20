@@ -1,11 +1,11 @@
-// First run (and again when NOTICE_VERSION bumps): a welcome, an optional tour with a live preview per feature,
-// and the short "your data" page that closes with Got it. Fixed size, so nothing jumps between steps.
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useApp } from "../../store";
 import { Icons } from "../bits";
 import { Logo } from "../Logo";
 import { MapPreview, NotesPreview, OverlayPreview, RegistryPreview, StatusPreview } from "./previews";
 import { Button } from "@/components/ui/button";
+import { GameLinkPanel } from "../GameLink";
+import { gameLinkStage } from "../../core/gamelink";
 
 interface Tour {
   title: string;
@@ -66,29 +66,37 @@ const TOUR: Tour[] = [
   },
 ];
 
-const LAST = TOUR.length + 1; // 0 = welcome, 1..n = tour, n + 1 = your data
+const ESSENTIALS = TOUR.length + 1;
+const SETUP = ESSENTIALS + 1;
 
 export function Onboarding() {
   const acknowledge = useApp((s) => s.acknowledgeNotice);
+  const link = useApp((s) => s.link);
+  const ready = gameLinkStage(link) === "ready";
   const [step, setStep] = useState(0);
   const [dir, setDir] = useState<1 | -1>(1);
+  const pane = useRef<HTMLDivElement>(null);
   const go = (to: number) => {
     setDir(to > step ? 1 : -1);
-    setStep(Math.max(0, Math.min(LAST, to)));
+    setStep(Math.max(0, Math.min(SETUP, to)));
   };
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "ArrowRight" || e.key === "Enter") go(step + 1);
-      else if (e.key === "ArrowLeft") go(step - 1);
+      if ((e.target as HTMLElement)?.closest("button, a, input, select, textarea, summary, [contenteditable]")) return;
+      if (e.key === "ArrowRight" && step < ESSENTIALS) go(step + 1);
+      else if (e.key === "ArrowLeft" && step > 0) go(step - 1);
     };
     addEventListener("keydown", onKey);
     return () => removeEventListener("keydown", onKey);
   });
+  useEffect(() => {
+    if (step > 0) pane.current?.focus();
+  }, [step]);
 
   const tour = step >= 1 && step <= TOUR.length ? TOUR[step - 1] : null;
   return (
     <div className="modal onboarding">
-      <div key={step} className={`ob-pane ${dir > 0 ? "from-right" : "from-left"}`}>
+      <div key={step} ref={pane} tabIndex={-1} className={`ob-pane ${dir > 0 ? "from-right" : "from-left"}`}>
         {step === 0 && (
           <div className="ob-welcome">
             <div className="ob-stars" aria-hidden>
@@ -103,7 +111,7 @@ export function Onboarding() {
               <Button size="sm" onClick={() => go(1)}>
                 Take the tour
               </Button>
-              <Button variant="ghost" size="sm" onClick={() => go(LAST)}>
+              <Button variant="ghost" size="sm" onClick={() => go(ESSENTIALS)}>
                 Skip to the essentials
               </Button>
             </div>
@@ -118,7 +126,14 @@ export function Onboarding() {
             </div>
           </>
         )}
-        {step === LAST && <Essentials />}
+        {step === ESSENTIALS && <Essentials />}
+        {step === SETUP && (
+          <div className="ob-game-link scroll">
+            <h2>Connect to SWTOR</h2>
+            <p className="ob-game-intro">Combat logs help Hydian find your characters and follow them in game.</p>
+            <GameLinkPanel />
+          </div>
+        )}
       </div>
 
       {step > 0 && (
@@ -127,22 +142,26 @@ export function Onboarding() {
             Back
           </Button>
           <div className="ob-dots" aria-hidden>
-            {Array.from({ length: LAST }, (_, i) => (
+            {Array.from({ length: SETUP }, (_, i) => (
               <i key={i} className={i + 1 === step ? "on" : i + 1 < step ? "done" : ""} />
             ))}
           </div>
-          {step < LAST ? (
+          {step < ESSENTIALS ? (
             <div className="ob-actions">
-              <Button variant="ghost" size="sm" onClick={() => go(LAST)}>
+              <Button variant="ghost" size="sm" onClick={() => go(ESSENTIALS)}>
                 Skip
               </Button>
               <Button size="sm" onClick={() => go(step + 1)}>
                 Next
               </Button>
             </div>
+          ) : step === ESSENTIALS ? (
+            <Button size="sm" onClick={() => (ready ? acknowledge() : go(SETUP))}>
+              {ready ? "Open Hydian" : "Continue"}
+            </Button>
           ) : (
-            <Button size="sm" onClick={acknowledge}>
-              Got it
+            <Button variant={ready ? "default" : "ghost"} size="sm" onClick={acknowledge}>
+              {ready ? "Open Hydian" : "Skip for now"}
             </Button>
           )}
         </div>
@@ -193,10 +212,11 @@ function Essentials() {
     ],
     [
       Icons.users(),
-      "Your log includes nearby players",
+      "Only shared characters appear",
       <>
-        Sightings upload while your character is shared. The <em>Not on Hydian</em> pins on your map come from your own
-        local log.
+        The map and registry show active characters sharing as <em>In Character</em> or <em>Out of Character</em>.
+        Invisible characters stay off these lists. Your log can include nearby players; those sightings upload while
+        your character is shared.
       </>,
     ],
     [

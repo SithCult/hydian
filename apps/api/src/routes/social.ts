@@ -1,11 +1,23 @@
 // Friends (edges only; the list itself stays on the client) and the optional feedback survey.
 import type { FastifyInstance } from "fastify";
 import { FriendOp, Feedback } from "../schemas.ts";
-import { withInstallLock } from "../installs.ts";
+import { characterDigest, withInstallLock } from "../installs.ts";
 
-async function write(installId: string, sql: string, args: unknown[]) {
-  return withInstallLock(installId, async (client, { erased }) => {
+async function write(
+  installId: string,
+  sql: string,
+  args: unknown[],
+  character?: { server: string; characterId: string },
+) {
+  return withInstallLock(installId, async (client, { digest, erased }) => {
     if (erased) return false;
+    if (character) {
+      const removed = await client.query(
+        "SELECT 1 FROM removed_characters WHERE install_digest = $1 AND character_digest = $2",
+        [digest, characterDigest(character.server, character.characterId)],
+      );
+      if (removed.rowCount) return true;
+    }
     try {
       await client.query("BEGIN");
       await client.query(sql, args);
@@ -29,7 +41,7 @@ export default async function social(app: FastifyInstance) {
         ? `INSERT INTO friends (install_id, server, character_id) VALUES ($1,$2,$3)
          ON CONFLICT (install_id, server, character_id) DO UPDATE SET added_at = now(), removed_at = NULL`
         : `UPDATE friends SET removed_at = now() WHERE install_id = $1 AND server = $2 AND character_id = $3`;
-    if (!(await write(f.installId, sql, args))) return reply.code(410).send({ error: "installation erased" });
+    if (!(await write(f.installId, sql, args, f))) return reply.code(410).send({ error: "installation erased" });
     return { ok: true };
   });
 

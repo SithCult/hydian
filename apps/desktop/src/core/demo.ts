@@ -183,7 +183,6 @@ export function demoState() {
     live,
     liveAt: now,
     link: { status: "live" as const, file: "combat_demo.txt", progress: [1, 1] as [number, number], lines: 4_812 },
-    showSeen: true,
     legend: true,
     ...demoScreen(),
   };

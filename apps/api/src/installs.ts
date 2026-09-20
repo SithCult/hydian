@@ -2,6 +2,11 @@ import { createHash } from "node:crypto";
 import type { PoolClient } from "pg";
 import { pool } from "./db.ts";
 
+export const characterDigest = (server: string, characterId: string) =>
+  createHash("sha256")
+    .update(`${server}:${BigInt(characterId)}`)
+    .digest("hex");
+
 /** Keep database writes and their public-presence updates ordered with erasure. */
 export async function withInstallLock<T>(
   installId: string,

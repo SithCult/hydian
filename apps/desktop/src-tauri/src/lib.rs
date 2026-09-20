@@ -49,9 +49,25 @@ fn set_tray_visible(app: tauri::AppHandle, visible: bool) -> Result<(), String> 
     Ok(())
 }
 
+#[derive(Debug, serde::Deserialize)]
+#[serde(rename_all = "lowercase")]
+enum WebsitePage {
+    Privacy,
+    About,
+}
+
+impl WebsitePage {
+    fn url(self) -> &'static str {
+        match self {
+            Self::Privacy => "https://hydian.org/privacy",
+            Self::About => "https://hydian.org/about",
+        }
+    }
+}
+
 #[tauri::command]
-async fn open_privacy_policy() -> Result<(), String> {
-    tauri::async_runtime::spawn_blocking(|| open::that("https://hydian.org/privacy"))
+async fn open_website_page(page: WebsitePage) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || open::that(page.url()))
         .await
         .map_err(|e| e.to_string())?
         .map_err(|e| e.to_string())
@@ -199,7 +215,7 @@ fn fs_read(path: String, offset: u64, length: u64) -> Result<Response, FileError
 
 #[cfg(test)]
 mod tests {
-    use super::{allowed_file, fs_read_dir, FileError};
+    use super::{allowed_file, fs_read_dir, FileError, WebsitePage};
     use std::{
         fs,
         path::PathBuf,
@@ -207,6 +223,20 @@ mod tests {
     };
 
     static NEXT_FIXTURE: AtomicUsize = AtomicUsize::new(0);
+
+    #[test]
+    fn website_pages_only_accept_known_destinations() {
+        for (page, url) in [
+            ("privacy", "https://hydian.org/privacy"),
+            ("about", "https://hydian.org/about"),
+        ] {
+            let page: WebsitePage = serde_json::from_value(serde_json::json!(page)).unwrap();
+            assert_eq!(page.url(), url);
+        }
+        for value in ["https://example.com", "file:///tmp/private", "../about", "About", ""] {
+            assert!(serde_json::from_value::<WebsitePage>(serde_json::json!(value)).is_err());
+        }
+    }
 
     struct Fixture(PathBuf);
 
@@ -367,7 +397,7 @@ pub fn run() {
             launched_minimized,
             is_game_running,
             autostart_enable,
-            open_privacy_policy,
+            open_website_page,
             set_tray_visible
         ])
         .setup(|app| {

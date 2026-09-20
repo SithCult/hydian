@@ -69,14 +69,14 @@ export default function Privacy() {
         </p>
         <p>
           Shared profiles show character name, ID, server, faction, area, status, Looking for RP, instance and last
-          activity. In-game positions appear while the character is present. Live presence expires around 45 minutes
-          after the last recorded activity. An offline registry entry can retain the name, faction, last area and
-          activity time.
+          activity. Only active characters set to In Character or Out of Character appear in the public map and
+          registry. Live presence expires around 45 minutes after the last recorded activity, and the character is then
+          removed from those public lists. Your own character controls remain available privately in the app.
         </p>
         <p>
           Public heatmaps and activity summaries use a minimum of ten distinct In-Character characters for the selected
-          area or server and period. The app&apos;s “Not on Hydian” markers come from your local combat log. Records in
-          other players&apos; game logs are separate from Hydian&apos;s visibility settings.
+          area or server and period. Records in other players&apos; game logs are separate from Hydian&apos;s visibility
+          settings.
         </p>
 
         <h2>Storage and service providers</h2>
@@ -93,6 +93,13 @@ export default function Privacy() {
         <p>
           You can change each character&apos;s visibility and disable log-history uploads in the app. Friend connections
           can be submitted while your characters are Invisible.
+        </p>
+        <p>
+          <strong>Remove from Hydian</strong> in your character&apos;s profile stops sharing from this device and
+          removes its shared profile, submitted location updates, related sightings and friend connection. Your local
+          game logs, notes and journal remain available. A removal record prevents pending uploads from restoring the
+          character; choosing In Character or Out of Character again explicitly resumes sharing. Submissions from other
+          installations are handled separately.
         </p>
         <p>
           <strong>Settings › Privacy › Delete what this device sent</strong> stops sharing and removes the installation
@@ -122,7 +129,7 @@ export default function Privacy() {
           someone. Keep your installation identifier private. You can also contact your local data protection authority
           about how your information is handled.
         </p>
-        <p className={s.updated}>Last updated 19 September 2026.</p>
+        <p className={s.updated}>Last updated 20 September 2026.</p>
       </Reveal>
     </main>
   );

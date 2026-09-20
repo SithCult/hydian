@@ -11,8 +11,8 @@ export const STATUS_META: Record<RPStatus, { label: string; short: string; color
   invisible: {
     label: "Invisible",
     short: "OFF",
-    color: "#3f4147",
-    hint: "Nothing is sent. This character stays off the map",
+    color: "#949ba4",
+    hint: "Hidden from Hydian’s public map and player lists",
   },
 };
 /** Looking-for-RP is a flag on top of the status, not a status of its own. */
@@ -64,3 +64,7 @@ export interface Player {
 
 /** Avatar colour: derived from the character id, so it is stable and needs no storage. */
 export const hueOf = (id: string) => (Number(id.slice(-3)) * 7) % 360;
+
+/** Public presence is opt-in and expires when gameplay activity stops. */
+export const isPublicPlayer = (p: Player, now = Date.now()) =>
+  !p.isSeen && (p.status === "ic" || p.status === "ooc") && presenceOf(p.lastActive, now) !== "gone";
