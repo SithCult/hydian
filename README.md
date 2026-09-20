@@ -60,12 +60,14 @@ One monorepo, MIT licensed:
 apps/desktop   Tauri 2 (Rust) + React: the app
 apps/api       Fastify 5 + Postgres (Node 24)
 apps/web       hydian.org (Next.js)
-apps/tiles     static server for the map artwork
+apps/tiles     artwork-serving tools (map images are supplied separately)
 ```
 
 The map artwork, planet icons and emblems are BioWare/EA assets and are not part of this repository or its licence:
-see [GAME-CONTENT.md](GAME-CONTENT.md). The app loads them from the hosted tiles service; `src/data/maps.json` and
-`src/data/planet-icons.json` carry only the metadata (names, ids, bounds, file names).
+see [GAME-CONTENT.md](GAME-CONTENT.md). The app loads artwork from `https://tiles.hydian.org/`, configurable with
+`VITE_ASSET_BASE`. `apps/desktop/src/data/maps.json` and `apps/desktop/src/data/planet-icons.json` carry only the
+metadata (names, ids, bounds, file names). Local development uses the hosted artwork without starting a separate
+artwork server. The tools in `apps/tiles` need artwork supplied outside Git; see [their README](apps/tiles/README.md).
 
 ### Running
 
@@ -73,13 +75,18 @@ Use Node.js 24 (see `.nvmrc`) and the pinned pnpm version. The native app also n
 [platform prerequisites](https://v2.tauri.app/start/prerequisites/).
 
 ```bash
-pnpm install
+pnpm install --frozen-lockfile
 pnpm dev            # desktop app (needs Rust: https://rustup.rs)
 pnpm preview        # browser preview on :1420, log access through a small Node bridge
 pnpm api            # backend on :8080 (needs DATABASE_URL)
 pnpm web            # website on :4321
-pnpm -C apps/desktop tauri build   # installer
+pnpm -C apps/desktop tauri build --config '{"bundle":{"createUpdaterArtifacts":false}}'  # local installer
 ```
+
+Run the website at <http://localhost:4321> and the app preview at <http://localhost:1420> in separate terminals.
+`pnpm dev` and `pnpm preview` share port 1420, so choose one. The browser demo at
+<http://localhost:1420/?demo=1> uses synthetic characters and skips reading game logs. Tray, overlay, autostart and
+update features require the native app.
 
 CI runs types, lint, formatting, JavaScript regressions against an isolated Postgres database, native Rust tests,
 and frontend builds, then builds the installers for Windows, macOS
@@ -87,9 +94,10 @@ and frontend builds, then builds the installers for Windows, macOS
 the version is bumped (patch, or minor when a commit says `feat:`), tagged and built. Publication requires
 maintainer approval and successful signing, notarization and updater-signature checks for every platform.
 
-The app defaults to the hosted Hydian backend and artwork. For a local API, copy
-`apps/desktop/.env.example` to `apps/desktop/.env` and restart the app. `VITE_ASSET_BASE=/` uses artwork
-you provide in `apps/desktop/public/` and includes it in builds.
+The app defaults to the hosted Hydian backend and artwork. For a local API, create a PostgreSQL database, copy
+`apps/api/.env.example` to `apps/api/.env`, and set `DATABASE_URL` before starting `pnpm api`. Then copy
+`apps/desktop/.env.example` to `apps/desktop/.env` and restart the app to use `http://localhost:8080`.
+`VITE_ASSET_BASE=/` uses artwork you provide in `apps/desktop/public/` and includes it in builds.
 
 See [local development](docs/LOCAL-DEVELOPMENT.md) for a full local setup and a synthetic demo, and
 [release signing](docs/RELEASING.md) for Apple notarization and Windows signing.
@@ -97,17 +105,18 @@ See [local development](docs/LOCAL-DEVELOPMENT.md) for a full local setup and a 
 ### Game folders
 
 Windows: logs in `%USERPROFILE%\Documents\Star Wars - The Old Republic\CombatLogs`, characters from
-`%LOCALAPPDATA%\SWTOR\swtor\settings`. macOS: the game runs in a CrossOver or Whisky bottle, and Hydian finds the
-same two folders under `~/Library/Application Support/CrossOver/Bottles/*/drive_c/users/*/`. Settings › Game link ›
-_advanced…_ sets both by hand. Combat logging is switched on in the game under _Preferences → Combat Logging_.
+`%LOCALAPPDATA%\SWTOR\swtor\settings`. On macOS, Hydian looks for the same folders inside CrossOver or Whisky
+bottles. If detection misses your installation, use Settings › Game link › _advanced…_ to choose them.
+In SWTOR, turn on _Preferences → Combat Logging → Enable Combat Logging to File_, enter combat to create a log,
+then choose _Rescan logs_ in Hydian.
 
 ### Releases and updates
 
 Releases are cut by CI from `main` (`release.yml`) and land on [hydian.org/download](https://hydian.org/download).
 Installed copies check for a new version on start and every six hours, download it in the background and offer a
-restart (`apps/desktop/src/core/update.ts`, `tauri-plugin-updater`); updates are signed, the public key is in
-`tauri.conf.json`. macOS gets the native traffic lights over Hydian's own chrome, a menu-bar icon, autostart and the
-`⌘⇧O` / `⌘⇧L` shortcuts.
+restart. You can also check in Settings › About or the native Help menu. Updates are signed; the public key is in
+`apps/desktop/src-tauri/tauri.conf.json`. macOS gets native traffic lights, an optional menu-bar icon, autostart and
+the `⌘⇧O` / `⌘⇧L` shortcuts.
 
 ### Branding
 

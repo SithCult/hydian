@@ -2,8 +2,8 @@
 
 Three rules shape every change:
 
-1. **The game link reads.** Hydian's native surface is three read-only file commands in
-   `apps/desktop/src-tauri/src/lib.rs`, limited to combat logs and `.ini` files. That stays the whole surface.
+1. **The game link reads.** Native game-file access is limited to reading combat logs and `.ini` files.
+   Hydian never writes into game folders.
 2. **Profiles are a name, a status and a place.** Notes and the journal are the place for text, and they stay
    on the device.
 3. **No slop.** Use whatever tools you like, AI included; we do. What you open a pull request with has to be
@@ -19,7 +19,7 @@ Three rules shape every change:
 | `apps/desktop/branding`            | The mark, the icon master and the macOS Icon Composer bundle                                                     |
 | `apps/api`                         | Fastify + Postgres backend. `routes/` one file per concern, `schemas.ts` the payloads, `presence.ts` the live map |
 | `apps/web`                         | hydian.org: Next.js (App Router, static export), motion, CSS modules                                            |
-| `apps/tiles`                       | Static server for the map artwork (the hosted tiles service)                                                      |
+| `apps/tiles`                       | Artwork-serving tools; map images are supplied separately                                                      |
 | `apps/desktop/public/{maps,icons}` | BioWare/EA artwork, git-ignored and not part of the repository; the app loads it from the tiles service        |
 
 ## Running
@@ -37,6 +37,9 @@ pnpm web            # website
 
 ## Before a pull request
 
+Use a branch and pull request for changes, including maintainer changes. Keep each PR focused and wait for review
+and green CI before merging. Releases are built from `main` after merge.
+
 ```bash
 pnpm typecheck && pnpm lint && pnpm format:check
 TEST_DATABASE_URL=postgresql://localhost:5432/hydian_test pnpm test
@@ -45,6 +48,11 @@ TEST_DATABASE_URL=postgresql://localhost:5432/hydian_test pnpm test
 CI runs the same, then `cargo fmt --check`, `cargo clippy -D warnings` and a full installer build on Windows,
 macOS (Apple Silicon) and macOS (Intel). Rust is formatted with rustfmt (`cargo fmt` in `apps/desktop/src-tauri`),
 everything else with Prettier (`pnpm format`).
+
+Fill in the [PR template](.github/PULL_REQUEST_TEMPLATE.md) with the behavior change and actual check results.
+For UI or workflow changes, exercise the affected flow with the Playwright CLI and attach clear screenshots with
+short scenario captions. Use synthetic demo data and include the command you ran. Native-only behavior also needs
+native app verification. Explain any unavailable check; for non-visual changes, mark visual proof not applicable.
 
 ## Style
 

@@ -2,9 +2,18 @@
 
 <!-- One or two sentences: what changes and why. Link the issue if there is one. -->
 
+## Verification
+
+<!-- Commands/flows tested and results. Note anything not tested and why. -->
+
+## Visual proof
+
+<!-- UI or workflow changes: attach screenshots with short captions and the Playwright CLI command/scenarios tested.
+Use synthetic data. For native-only behavior, include native app evidence too.
+Otherwise write "Not applicable" and a short reason. -->
+
 ## Checklist
 
-- [ ] `pnpm typecheck && pnpm lint && pnpm format:check` pass
-- [ ] The game link stays read-only (no new native commands, no writes into game folders)
-- [ ] No free-text profile fields, no class shown, notes/journal stay local
-- [ ] UI wording is plain (no ids, no internals) and screenshots are attached for visual changes
+- [ ] Relevant checks pass; failures or gaps are explained above
+- [ ] Game files remain read-only, notes/journal stay local, and no secrets or personal data are included
+- [ ] Changed UI/workflows are exercised and visual proof is attached, or marked not applicable

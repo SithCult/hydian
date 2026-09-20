@@ -129,7 +129,7 @@ export class OverlayHost {
       this.gameRunning = e.payload.running;
       void this.apply();
     });
-    await listen("overlay:toggle", () => void this.set({ on: !this.settings.on }));
+    await listen("overlay:show", () => void this.set({ on: true }));
     await this.restorePosition();
     await this.registerHotkeys();
     await this.apply();
