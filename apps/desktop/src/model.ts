@@ -26,7 +26,7 @@ export interface CharStatus {
 export const DEFAULT_STATUS: CharStatus = { status: "invisible", lfrp: false, instance: null }; // sharing is opt-in per character
 export const INSTANCES = [1, 2, 3, 4, 5, 6] as const;
 
-/** Presence rule (client display; the backend keeps every record regardless).
+/** Presence windows for the client display.
  *  Idle/RP sessions can be silent in the combat log for a long time (p99 gap 13 min, max seen 47 min),
  *  so "active" is generous and "gone" is well past the longest real silence. */
 export const PRESENCE = { activeMs: 10 * 60_000, staleMs: 45 * 60_000 } as const;

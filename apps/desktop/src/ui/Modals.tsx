@@ -1,3 +1,4 @@
+import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { planetForArea } from "../data/planets";
 import { DEFAULT_STATUS, isPublicPlayer, hueOf, type Player } from "../model";
@@ -46,7 +47,14 @@ export function Modals() {
               <ProfileModal p={p} close={close} />
             ) : (
               <div className="modal">
-                <p>This character isn’t sharing right now.</p>
+                <div className="body">
+                  <p>This character isn’t sharing right now.</p>
+                </div>
+                <div className="foot">
+                  <Button size="sm" onClick={close}>
+                    Done
+                  </Button>
+                </div>
               </div>
             );
           })()}

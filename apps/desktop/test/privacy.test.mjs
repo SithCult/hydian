@@ -678,3 +678,38 @@ test("overlay rejects Invisible and observed-only players, including friends", a
   );
   assert.equal("seen" in snapshot, false);
 });
+
+for (const oldStatus of [200, 503]) {
+  test(`an older registry ${oldStatus === 200 ? "response" : "failure"} cannot undo a newer refresh`, async () => {
+    const { useApp, selectRegistered } = await client();
+    const old = deferred(),
+      latest = deferred();
+    let calls = 0;
+    globalThis.fetch = () => (++calls === 1 ? old.promise : latest.promise);
+    useApp.setState({ registry: { he4000: { at: 0, error: null, players: [player("99")] } } });
+    const first = useApp.getState().loadRegistry("he4000", true);
+    const second = useApp.getState().loadRegistry("he4000", true);
+    latest.resolve(response({ characters: [] }));
+    await second;
+    old.resolve(
+      response(
+        {
+          characters: [
+            {
+              key: "he4000:99",
+              server: "he4000",
+              characterId: "99",
+              name: "Now hidden",
+              status: "ic",
+              lastActive: Date.now(),
+            },
+          ],
+        },
+        oldStatus,
+      ),
+    );
+    await first;
+    assert.deepEqual(selectRegistered(useApp.getState(), "he4000"), []);
+    assert.equal(useApp.getState().registry.he4000.error, null);
+  });
+}

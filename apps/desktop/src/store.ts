@@ -211,6 +211,7 @@ let uplink: Uplink | null = null;
 let backfill: Backfill | null = null;
 let erasingData = false;
 let presenceRevision = 0;
+const registryRequests = new Map<string, number>();
 let overlayHost: OverlayHost | null = null;
 let gameNames: { server: string; name: string; owner: string }[] = []; // names on my in-game friends lists, per server, and whose list
 /** Push the planet-local view to the overlay whenever it could have changed (cheap: it diffs by content). */
@@ -700,10 +701,12 @@ export const useApp = create<AppState>((set, get) => ({
     if (!force && cur && Date.now() - cur.at < 60_000) return;
     if (!get().serverUrl) return;
     const revision = presenceRevision;
+    const request = (registryRequests.get(server) ?? 0) + 1;
+    registryRequests.set(server, request);
     try {
       const list = await fetchRegistry(get().serverUrl, server);
-      // A slower HTTP snapshot must not undo a newer live leave or privacy choice.
-      if (revision !== presenceRevision) return;
+      // A slower response must not undo a newer refresh, live leave or privacy choice.
+      if (revision !== presenceRevision || registryRequests.get(server) !== request) return;
       set({
         registry: {
           ...get().registry,
@@ -716,7 +719,7 @@ export const useApp = create<AppState>((set, get) => ({
       });
       get().syncGameFriends();
     } catch (e) {
-      if (revision !== presenceRevision) return;
+      if (revision !== presenceRevision || registryRequests.get(server) !== request) return;
       set({
         registry: {
           ...get().registry,
