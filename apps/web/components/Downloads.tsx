@@ -44,18 +44,18 @@ function Buttons({ os, rel, primary }: { os: DesktopOs; rel: Release | null; pri
   const size = (k: FileKey) => rel?.files?.[k] && <span className={s.size}>{mb(rel.files[k].size)}</span>;
   if (os === "windows")
     return (
-      <a className={cls} href={href("windows")} download>
+      <a className={cls} href={href("windows")} target="_blank" rel="noopener noreferrer" download>
         <WindowsLogo /> Windows installer
         {size("windows")}
       </a>
     );
   return (
     <>
-      <a className={cls} href={href("macArm")} download>
+      <a className={cls} href={href("macArm")} target="_blank" rel="noopener noreferrer" download>
         <AppleLogo /> Apple Silicon
         {size("macArm")}
       </a>
-      <a className="btn" href={href("macIntel")} download>
+      <a className="btn" href={href("macIntel")} target="_blank" rel="noopener noreferrer" download>
         <AppleLogo /> Intel{size("macIntel")}
       </a>
     </>
@@ -140,8 +140,15 @@ export function Downloads() {
           <ul>
             <li>Turn on combat logging in the game: Preferences, Combat Logging, Enable Combat Logging to File.</li>
             <li>
-              Every release and its notes: <a href={SITE.releases}>GitHub releases</a>. Source:{" "}
-              <a href={SITE.github}>github.com/SithCult/hydian</a>.
+              Every release and its notes:{" "}
+              <a href={SITE.releases} target="_blank" rel="noopener noreferrer">
+                GitHub releases
+              </a>
+              . Source:{" "}
+              <a href={SITE.github} target="_blank" rel="noopener noreferrer">
+                github.com/SithCult/hydian
+              </a>
+              .
             </li>
           </ul>
         </div>

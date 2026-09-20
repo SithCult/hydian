@@ -105,7 +105,7 @@ export function snapshot(
 // ---------------------------------------------------------------- main-window side
 export class OverlayHost {
   private win: import("@tauri-apps/api/webviewWindow").WebviewWindow | null = null;
-  private gameRunning = true;
+  private gameRunning: boolean | null = null;
   private settings = loadOverlaySettings();
   private last = "";
   onSettings: (s: OverlaySettings) => void = () => {};
@@ -115,16 +115,19 @@ export class OverlayHost {
     const { WebviewWindow } = await import("@tauri-apps/api/webviewWindow");
     const { listen } = await import("@tauri-apps/api/event");
     this.win = await WebviewWindow.getByLabel("overlay");
-    try {
-      const { invoke } = await import("@tauri-apps/api/core");
-      this.gameRunning = await invoke<boolean>("is_game_running");
-    } catch {
-      /* assume running */
-    }
-    await listen<{ running: boolean }>("game", (e) => {
+    let observedGameEvent = false;
+    await listen<{ running: boolean | null }>("game", (e) => {
+      observedGameEvent = true;
       this.gameRunning = e.payload.running;
       void this.apply();
     });
+    try {
+      const { invoke } = await import("@tauri-apps/api/core");
+      const running = await invoke<boolean | null>("is_game_running");
+      if (!observedGameEvent) this.gameRunning = running;
+    } catch {
+      /* unavailable detection keeps the overlay visible */
+    }
     await listen("overlay:show", () => void this.set({ on: true }));
     await this.restorePosition();
     await this.registerHotkeys();
@@ -146,7 +149,7 @@ export class OverlayHost {
   private async apply() {
     const w = this.win;
     if (!w) return;
-    const visible = this.settings.on && (!this.settings.autoHide || this.gameRunning);
+    const visible = this.settings.on && (!this.settings.autoHide || this.gameRunning !== false);
     try {
       if (visible) {
         await w.show();

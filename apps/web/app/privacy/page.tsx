@@ -35,7 +35,7 @@ export default function Privacy() {
         <p>
           Your journal, personal notes, local friend list, settings and encounter index are stored on your device.
           Following a character or importing a friend shares that character&apos;s ID and server with Hydian, linked to
-          your installation. The overlay checks running process names to determine whether SWTOR is open.
+          your installation. The overlay checks whether SWTOR is running.
         </p>
         <p>
           Using the website or app involves ordinary connection information, including IP addresses. Service logs may
@@ -119,9 +119,12 @@ export default function Privacy() {
 
         <h2>Contact</h2>
         <p>
-          Hydian is a fan project by <a href="https://github.com/SithCult">SithCult</a>. For privacy questions or
-          requests for access, correction, erasure, restriction or a copy of your information, contact{" "}
-          <a href="mailto:legal@hydian.org">legal@hydian.org</a>.
+          Hydian is a fan project by{" "}
+          <a href="https://github.com/SithCult" target="_blank" rel="noopener noreferrer">
+            SithCult
+          </a>
+          . For privacy questions or requests for access, correction, erasure, restriction or a copy of your
+          information, contact <a href="mailto:legal@hydian.org">legal@hydian.org</a>.
         </p>
         <p>
           We handle requests individually. Include the relevant game server, character and a description of the issue so

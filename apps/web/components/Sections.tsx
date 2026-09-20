@@ -70,10 +70,15 @@ export function DataReadout() {
           </p>
         </div>
         <div className={s.sourceActions}>
-          <a className="btn primary small" href={SITE.github}>
+          <a className="btn primary small" href={SITE.github} target="_blank" rel="noopener noreferrer">
             <GitHubLogo /> Read the source
           </a>
-          <a className="btn small" href={`${SITE.github}/blob/main/CONTRIBUTING.md`}>
+          <a
+            className="btn small"
+            href={`${SITE.github}/blob/main/CONTRIBUTING.md`}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
             Contribute
           </a>
         </div>
@@ -144,10 +149,17 @@ const FAQ: { q: string; a: React.ReactNode }[] = [
     a: (
       <>
         Hydian reads the combat log the game writes to your Documents folder. It is the same file the parsers read that
-        raiders have used for a decade, <a href="https://ixparse.com/">StarParse</a> and{" "}
-        <a href="https://parsely.io/">Parsely</a> among them, to measure their damage. Reading that file is part of the
-        game. Hydian also reads game settings for characters, friends and notes, and checks process names for its
-        overlay. It is an independent fan project.
+        raiders have used for a decade,{" "}
+        <a href="https://ixparse.com/" target="_blank" rel="noopener noreferrer">
+          StarParse
+        </a>{" "}
+        and{" "}
+        <a href="https://parsely.io/" target="_blank" rel="noopener noreferrer">
+          Parsely
+        </a>{" "}
+        among them, to measure their damage. Reading that file is part of the game. Hydian also reads game settings for
+        characters, friends and notes, and checks whether SWTOR is running for its overlay. It is an independent fan
+        project.
       </>
     ),
   },
@@ -218,7 +230,7 @@ export function Download() {
         <p>Free, open source, no account. Windows and macOS.</p>
         <div className={s.cta}>
           <PlatformDownloadLinks />
-          <a className={s.dlSource} href={SITE.github}>
+          <a className={s.dlSource} href={SITE.github} target="_blank" rel="noopener noreferrer">
             Source on GitHub
           </a>
         </div>
@@ -231,8 +243,11 @@ export function Footer() {
   return (
     <footer className={s.footer}>
       <p>
-        Open source under the MIT licence, by <a href={SITE.github}>SithCult</a> ·{" "}
-        <a href="/about">About &amp; contact</a> · <a href="/privacy">Privacy</a>
+        Open source under the MIT licence, by{" "}
+        <a href={SITE.github} target="_blank" rel="noopener noreferrer">
+          SithCult
+        </a>{" "}
+        · <a href="/about">About &amp; contact</a> · <a href="/privacy">Privacy</a>
       </p>
       <p className="fine">{SITE.disclaimer}</p>
     </footer>

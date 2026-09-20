@@ -45,7 +45,20 @@
     font: 14px/1.45 var(--font);
     -webkit-font-smoothing: antialiased;
     overflow: hidden;
+    -webkit-user-select: none;
     user-select: none;
+  }
+  input,
+  textarea,
+  [contenteditable]:not([contenteditable="false"]),
+  .editor .bn-editor,
+  .game-link-diagnostics dd,
+  .about-kv > .v,
+  .app-version,
+  .bf-progress,
+  .crash code {
+    -webkit-user-select: text;
+    user-select: text;
   }
   button,
   input {
@@ -2178,7 +2191,6 @@ html.overlay-page #root {
   border-radius: 6px;
   max-width: 100%;
   white-space: pre-wrap;
-  user-select: text;
 }
 
 /* ---------------------------------------------------------------- tabbed settings */

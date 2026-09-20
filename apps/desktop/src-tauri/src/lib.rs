@@ -7,6 +7,7 @@
 // Reads are restricted to the two file kinds the app understands (combat logs, .ini),
 // so even a wrong folder pick cannot read arbitrary files.
 use std::{
+    ffi::{OsStr, OsString},
     fs::File,
     io::{Read, Seek, SeekFrom},
     path::{Path, PathBuf},
@@ -215,14 +216,80 @@ fn fs_read(path: String, offset: u64, length: u64) -> Result<Response, FileError
 
 #[cfg(test)]
 mod tests {
-    use super::{allowed_file, fs_read_dir, FileError, WebsitePage};
+    use super::{allowed_file, fs_read_dir, swtor_process, FileError, WebsitePage};
     use std::{
+        ffi::{OsStr, OsString},
         fs,
         path::PathBuf,
         sync::atomic::{AtomicUsize, Ordering},
     };
 
     static NEXT_FIXTURE: AtomicUsize = AtomicUsize::new(0);
+
+    #[test]
+    fn game_detection_recognizes_native_and_wine_clients_without_matching_other_apps() {
+        let cases: &[(&str, &[&str], Option<bool>)] = &[
+            ("swtor.exe", &[], Some(true)),
+            ("SWTOR", &[], Some(true)),
+            (
+                "wine64-preloader",
+                &[r"C:\Program Files\Star Wars-The Old Republic\swtor\retailclient\swtor.exe"],
+                Some(true),
+            ),
+            (
+                "wine-preloader",
+                &[
+                    "/Applications/CrossOver.app/Contents/SharedSupport/CrossOver/bin/wine",
+                    "\"C:\\Games\\SWTOR.EXE\"",
+                ],
+                Some(true),
+            ),
+            (
+                "wine64-preloader",
+                &[
+                    "wine64-preloader",
+                    "/Whisky/Libraries/Wine/bin/wine64",
+                    "/Games/SWTOR/swtor.exe",
+                ],
+                Some(true),
+            ),
+            ("wine64-preloader", &["wine64", "notepad.exe", "swtor.exe"], Some(false)),
+            (
+                "wine64-preloader",
+                &["wine64", "/Games/SWTOR/launcher.exe"],
+                Some(false),
+            ),
+            (
+                "wine64-preloader",
+                &["wine64", "/Screenshots/swtor.exe.png"],
+                Some(false),
+            ),
+            ("wineserver", &["swtor.exe"], Some(false)),
+            ("swtor.log", &[], Some(false)),
+            ("Hydian", &[], Some(false)),
+            ("wine64-preloader", &[], None),
+            ("wine64-preloader", &["wine64"], None),
+            (
+                "wine64-preloader",
+                &["wine64", "start", "/unix", "/Games/swtor.exe"],
+                None,
+            ),
+            (
+                "wine64-preloader",
+                &["wine64", "start.exe", "/unix", "/Games/swtor.exe"],
+                None,
+            ),
+            (
+                "wine64-preloader",
+                &["wine64", "--unknown-wrapper-option", "swtor.exe"],
+                None,
+            ),
+        ];
+        for (name, args, expected) in cases {
+            let args = args.iter().map(OsString::from).collect::<Vec<_>>();
+            assert_eq!(swtor_process(OsStr::new(name), &args), *expected, "{name}: {args:?}");
+        }
+    }
 
     #[test]
     fn website_pages_only_accept_known_destinations() {
@@ -329,18 +396,80 @@ fn launched_minimized() -> bool {
     std::env::args().any(|a| a == "--minimized")
 }
 
-/// Is the game client running? Polled every few seconds; the overlay hides itself while it is not.
-/// Process names only; nothing is read from the game process.
-fn game_running(sys: &mut sysinfo::System) -> bool {
-    sys.refresh_processes(sysinfo::ProcessesToUpdate::All, true);
-    sys.processes().values().any(|p| {
-        let n = p.name().to_string_lossy().to_ascii_lowercase();
-        n == "swtor.exe" || n == "swtor" || n.starts_with("swtor.")
-    })
+fn executable_name(value: &OsStr) -> String {
+    value
+        .to_string_lossy()
+        .trim_matches('"')
+        .rsplit(['/', '\\'])
+        .next()
+        .unwrap_or_default()
+        .to_ascii_lowercase()
+}
+
+fn is_wine_loader(name: &str) -> bool {
+    matches!(
+        name,
+        "wine" | "wine64" | "wine32on64" | "wine-preloader" | "wine64-preloader" | "wine32on64-preloader"
+    )
+}
+
+fn swtor_process(name: &OsStr, command: &[OsString]) -> Option<bool> {
+    let name = executable_name(name);
+    if name == "swtor" || name == "swtor.exe" {
+        return Some(true);
+    }
+    if !is_wine_loader(&name) {
+        return Some(false);
+    }
+    // Wine's macOS executable name identifies the loader, not the Windows game.
+    // Inspect only its program argument, never arbitrary later arguments or its environment.
+    command
+        .iter()
+        .map(|arg| executable_name(arg))
+        .find(|arg| !is_wine_loader(arg))
+        .filter(|program| {
+            !program.is_empty() && !program.starts_with('-') && program != "start" && program != "start.exe"
+        })
+        .map(|program| program == "swtor" || program == "swtor.exe")
+}
+
+/// None means process detection is unavailable; it must not hide the overlay.
+fn game_running(sys: &mut sysinfo::System) -> Option<bool> {
+    use sysinfo::{ProcessRefreshKind, ProcessesToUpdate, UpdateKind};
+    let names = ProcessRefreshKind::nothing().without_tasks();
+    if sys.refresh_processes_specifics(ProcessesToUpdate::All, true, names) == 0 {
+        return None;
+    }
+    let loaders: Vec<_> = sys
+        .processes()
+        .iter()
+        .filter(|(_, p)| is_wine_loader(&executable_name(p.name())))
+        .map(|(pid, _)| *pid)
+        .collect();
+    if !loaders.is_empty() {
+        sys.refresh_processes_specifics(
+            ProcessesToUpdate::Some(&loaders),
+            true,
+            names.with_cmd(UpdateKind::OnlyIfNotSet),
+        );
+    }
+    let mut unknown = false;
+    for process in sys.processes().values() {
+        match swtor_process(process.name(), process.cmd()) {
+            Some(true) => return Some(true),
+            None => unknown = true,
+            Some(false) => {}
+        }
+    }
+    if unknown {
+        None
+    } else {
+        Some(false)
+    }
 }
 
 #[tauri::command]
-fn is_game_running() -> bool {
+fn is_game_running() -> Option<bool> {
     game_running(&mut sysinfo::System::new())
 }
 
@@ -480,7 +609,7 @@ pub fn run() {
             let handle = app.handle().clone();
             std::thread::spawn(move || {
                 let mut sys = sysinfo::System::new();
-                let mut last: Option<bool> = None;
+                let mut last = None;
                 loop {
                     let running = game_running(&mut sys);
                     if last != Some(running) {
