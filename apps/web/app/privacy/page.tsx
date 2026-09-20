@@ -15,6 +15,10 @@ export default function Privacy() {
         <p className="hud">Privacy</p>
         <h1>Privacy policy</h1>
         <p className={s.lead}>
+          Hydian is a fully non-profit, fan-made project. We give privacy the same care and attention as the rest of the
+          service.
+        </p>
+        <p className={s.lead}>
           Hydian uses SWTOR gameplay information to provide its map, character registry and social features. This policy
           explains how that information is used and the choices available to you.
         </p>
