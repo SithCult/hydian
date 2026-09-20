@@ -3,6 +3,7 @@ import { isTauri } from "../../core/fs";
 import { useApp, type SettingsTab } from "../../store";
 import { Private } from "../bits";
 import { AboutLogo } from "../AboutLogo";
+import { InstallationId } from "../InstallationId";
 import { IS_MAC, MOD, modShift } from "../../core/platform";
 import { PrivacyPolicyLink } from "../PrivacyPolicyLink";
 import { WebsitePageLink } from "../WebsitePageLink";
@@ -300,6 +301,8 @@ function AboutTab() {
       <div className="kv about-kv">
         <span className="k control-label">Version</span>
         <UpdateControls />
+        <span className="k control-label">Installation ID</span>
+        <InstallationId key={up.installId} value={up.installId} />
         <span className="k control-label">Privacy</span>
         <div>
           <PrivacyPolicyLink />

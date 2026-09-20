@@ -89,8 +89,10 @@ export function createBridge(roots = defaultRoots()) {
       const p = await checkedPath(url.searchParams.get("path"), url.pathname !== "/bridge/readDir");
 
       if (url.pathname === "/bridge/readDir") {
+        // The client only uses ^$ to request names without file metadata.
+        const filter = url.searchParams.get("filter");
+        if (filter && filter !== "^$") throw fail(400, "unsupported directory filter");
         const entries = await fs.readdir(p, { withFileTypes: true });
-        const filter = url.searchParams.get("filter") ? new RegExp(url.searchParams.get("filter"), "i") : null;
         const out = [];
         for (const e of entries) {
           if (e.isSymbolicLink()) {
@@ -107,7 +109,7 @@ export function createBridge(roots = defaultRoots()) {
             out.push({ name: e.name, isDir: true, size: 0, mtime: 0 });
             continue;
           }
-          if (filter && !filter.test(e.name)) {
+          if (filter) {
             out.push({ name: e.name, isDir: false, size: 0, mtime: 0 });
             continue;
           }
@@ -154,7 +156,17 @@ export function createBridge(roots = defaultRoots()) {
             : e.code === "ENOTDIR"
               ? "not-directory"
               : "unavailable";
-      json(res, e.status ?? (e.code === "ENOENT" ? 404 : 500), { error: String(e.message ?? e), code });
+      const error =
+        code === "not-found"
+          ? "Folder or file not found."
+          : code === "permission-denied" || e.status === 403
+            ? "Access denied."
+            : code === "not-directory"
+              ? "Choose a folder, not a file."
+              : e.status === 400
+                ? "Invalid request."
+                : "Unable to read game files.";
+      json(res, e.status ?? (e.code === "ENOENT" ? 404 : 500), { error, code });
     }
   });
   return server;

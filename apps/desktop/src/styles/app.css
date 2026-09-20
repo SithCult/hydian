@@ -1064,6 +1064,42 @@ html[data-os="mac"] .rail {
 .about-kv > .control-label {
   padding-top: 5px;
 }
+.installation-id {
+  min-width: 0;
+}
+.installation-id-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.installation-id-field {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  min-width: 0;
+  padding-right: 3px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-main);
+}
+.installation-id-field input {
+  width: 100%;
+  min-width: 0;
+  padding: 6px 8px;
+  border: 0;
+  background: transparent;
+  font-family: var(--mono);
+  font-size: 12px;
+}
+.installation-id-copy {
+  min-width: 94px;
+}
+.installation-id-feedback {
+  margin: 6px 0 0;
+  color: #ffb4b4;
+  font-size: 11px;
+  line-height: 1.5;
+}
 .update-controls {
   min-width: 0;
 }
