@@ -13,6 +13,13 @@ CREATE TABLE IF NOT EXISTS erased_installs (
   digest text PRIMARY KEY
 );
 
+-- A removed character stays removed for this installation until explicit sharing resumes.
+CREATE TABLE IF NOT EXISTS removed_characters (
+  install_digest text NOT NULL,
+  character_digest text NOT NULL,
+  PRIMARY KEY (install_digest, character_digest)
+);
+
 CREATE TABLE IF NOT EXISTS characters (
   server      text   NOT NULL,
   id          bigint NOT NULL,

@@ -208,68 +208,90 @@ test("boot restores the saved menu-bar choice across app restarts", async (t) =>
   }
 });
 
-test("the menu shows the overlay repeatedly while the keyboard shortcut still toggles it", async () => {
-  const { OverlayHost } = await client();
-  const callbacks = new Map(),
-    events = new Map(),
-    shortcuts = new Map();
-  const visibility = [];
-  let emitted;
-  window.__TAURI_INTERNALS__.transformCallback = (callback) => {
-    const id = callbacks.size + 1;
-    callbacks.set(id, callback);
-    return id;
-  };
-  window.__TAURI_INTERNALS__.invoke = async (command, args) => {
-    switch (command) {
-      case "plugin:window|get_all_windows":
-        return ["overlay"];
-      case "is_game_running":
-        return true;
-      case "plugin:window|available_monitors":
-        return [];
-      case "plugin:window|primary_monitor":
-        return null;
-      case "plugin:event|listen":
-        events.set(args.event, callbacks.get(args.handler));
-        return args.handler;
-      case "plugin:global-shortcut|register":
-        shortcuts.set(args.shortcuts[0], args.handler.onmessage);
-        return;
-      case "plugin:global-shortcut|unregister_all":
-      case "plugin:window|set_always_on_top":
-      case "plugin:window|set_ignore_cursor_events":
-      case "plugin:window|set_resizable":
-        return;
-      case "plugin:window|show":
-      case "plugin:window|hide":
-        assert.equal(args.label, "overlay");
-        visibility.push(command === "plugin:window|show");
-        return;
-      case "plugin:event|emit_to":
-        assert.equal(args.event, "overlay:settings");
-        emitted.resolve();
-        return;
-      default:
-        throw new Error(`Unexpected native command: ${command}`);
+for (const initialGameState of [true, null, "unavailable", "changed-during-query"]) {
+  test(`overlay auto-hide handles ${initialGameState} detection and preserves menu/shortcut behavior`, async () => {
+    const { OverlayHost } = await client();
+    const callbacks = new Map(),
+      events = new Map(),
+      shortcuts = new Map();
+    const visibility = [];
+    let emitted;
+    window.__TAURI_INTERNALS__.transformCallback = (callback) => {
+      const id = callbacks.size + 1;
+      callbacks.set(id, callback);
+      return id;
+    };
+    window.__TAURI_INTERNALS__.invoke = async (command, args) => {
+      switch (command) {
+        case "plugin:window|get_all_windows":
+          return ["overlay"];
+        case "is_game_running":
+          if (initialGameState === "unavailable") throw new Error("Detection unavailable");
+          if (initialGameState === "changed-during-query") {
+            events.get("game")?.({ payload: { running: true } });
+            return false;
+          }
+          return initialGameState;
+        case "plugin:window|available_monitors":
+          return [];
+        case "plugin:window|primary_monitor":
+          return null;
+        case "plugin:event|listen":
+          events.set(args.event, callbacks.get(args.handler));
+          return args.handler;
+        case "plugin:global-shortcut|register":
+          shortcuts.set(args.shortcuts[0], args.handler.onmessage);
+          return;
+        case "plugin:global-shortcut|unregister_all":
+        case "plugin:window|set_always_on_top":
+        case "plugin:window|set_ignore_cursor_events":
+        case "plugin:window|set_resizable":
+          return;
+        case "plugin:window|show":
+        case "plugin:window|hide":
+          assert.equal(args.label, "overlay");
+          visibility.push(command === "plugin:window|show");
+          return;
+        case "plugin:event|emit_to":
+          assert.equal(args.event, "overlay:settings");
+          emitted.resolve();
+          return;
+        default:
+          throw new Error(`Unexpected native command: ${command}`);
+      }
+    };
+    const restoredOn = initialGameState === null;
+    if (restoredOn) localStorage.setItem("hydian:overlay:settings", JSON.stringify({ on: true, autoHide: true }));
+    const host = new OverlayHost();
+    await host.init();
+    assert.equal(host.current.on, restoredOn);
+    assert.equal(visibility.at(-1), restoredOn);
+    visibility.length = 0;
+    const show = () => events.get("overlay:show")({ payload: null });
+    const toggle = () => shortcuts.get("CommandOrControl+Shift+O")({ state: "Pressed" });
+    for (const [action, expected] of [
+      [show, true],
+      [show, true],
+      [toggle, false],
+      [toggle, true],
+    ]) {
+      emitted = deferred();
+      action();
+      await emitted.promise;
+      assert.equal(host.current.on, expected);
+      assert.equal(JSON.parse(localStorage.getItem("hydian:overlay:settings")).on, expected);
     }
-  };
-  const host = new OverlayHost();
-  await host.init();
-  assert.equal(host.current.on, false);
-  const show = () => events.get("overlay:show")({ payload: null });
-  const toggle = () => shortcuts.get("CommandOrControl+Shift+O")({ state: "Pressed" });
-  for (const [action, expected] of [
-    [show, true],
-    [show, true],
-    [toggle, false],
-    [toggle, true],
-  ]) {
-    emitted = deferred();
-    action();
-    await emitted.promise;
-    assert.equal(host.current.on, expected);
-    assert.equal(JSON.parse(localStorage.getItem("hydian:overlay:settings")).on, expected);
-  }
-  assert.deepEqual(visibility, [false, true, true, false, true]);
-});
+    assert.deepEqual(visibility, [true, true, false, true]);
+    for (const running of [false, true, null]) {
+      events.get("game")({ payload: { running } });
+      await host.set({});
+      assert.equal(visibility.at(-1), running !== false);
+      assert.equal(host.current.on, true, "auto-hide must not disable the user's overlay preference");
+    }
+    events.get("game")({ payload: { running: false } });
+    await host.set({ autoHide: false });
+    assert.equal(visibility.at(-1), true, "manual visibility works when the game has stopped");
+    await host.set({ on: false });
+    assert.equal(visibility.at(-1), false, "the off setting wins over detection");
+  });
+}

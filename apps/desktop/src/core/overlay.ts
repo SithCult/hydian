@@ -3,7 +3,7 @@
 // window itself never touches the log or the network. Position/size/lock live in localStorage, which both
 // windows share (same origin), and are restored on the monitor they were saved on.
 import { isTauri } from "./fs";
-import { presenceOf, type Player, type RPStatus } from "../model";
+import { isPublicPlayer, type Player, type RPStatus } from "../model";
 import type { Location } from "../data/maps";
 
 export interface OverlayPlayer {
@@ -12,7 +12,6 @@ export interface OverlayPlayer {
   status: RPStatus;
   lfrp: boolean;
   instance: number | null;
-  isSeen: boolean;
   isMe: boolean;
   m: number | null;
   where: string | null;
@@ -23,7 +22,6 @@ export interface OverlaySnapshot {
   server: string;
   me: { name: string; status: RPStatus; lfrp: boolean; instance: number | null; where: string | null } | null;
   players: OverlayPlayer[]; // sorted by distance to me, me excluded
-  seen: number; // "not on Hydian" nearby
   link: string; // game link status
 }
 export interface OverlaySettings {
@@ -74,17 +72,16 @@ export function snapshot(
   const now = Date.now();
   const dist = (p: Player) => (me && me.planetId === p.planetId ? Math.hypot(p.x - me.x, p.y - me.y) / 10 : null); // log units → metres
   const list = players
-    .filter((p) => !p.isMe && presenceOf(p.lastActive, now) !== "gone")
+    .filter((p) => !p.isMe && isPublicPlayer(p, now))
     .map((p) => ({
       key: p.key,
       name: p.name,
       status: p.status,
       lfrp: !!p.lfrp && p.status !== "invisible",
       instance: p.instance ?? null,
-      isSeen: !!p.isSeen,
       isMe: false,
       m: dist(p),
-      where: p.isSeen ? null : (locate(p)?.label ?? null),
+      where: locate(p)?.label ?? null,
       starred: !!follows[p.key],
     }))
     .sort((a, b) => Number(b.starred) - Number(a.starred) || (a.m ?? 1e9) - (b.m ?? 1e9));
@@ -100,16 +97,15 @@ export function snapshot(
           where: locate(me)?.label ?? null,
         }
       : null,
-    players: list.filter((p) => !p.isSeen || p.starred),
-    seen: list.filter((p) => p.isSeen && !p.starred).length,
-    link, // followed people show even when not on Hydian
+    players: list,
+    link,
   };
 }
 
 // ---------------------------------------------------------------- main-window side
 export class OverlayHost {
   private win: import("@tauri-apps/api/webviewWindow").WebviewWindow | null = null;
-  private gameRunning = true;
+  private gameRunning: boolean | null = null;
   private settings = loadOverlaySettings();
   private last = "";
   onSettings: (s: OverlaySettings) => void = () => {};
@@ -119,16 +115,19 @@ export class OverlayHost {
     const { WebviewWindow } = await import("@tauri-apps/api/webviewWindow");
     const { listen } = await import("@tauri-apps/api/event");
     this.win = await WebviewWindow.getByLabel("overlay");
-    try {
-      const { invoke } = await import("@tauri-apps/api/core");
-      this.gameRunning = await invoke<boolean>("is_game_running");
-    } catch {
-      /* assume running */
-    }
-    await listen<{ running: boolean }>("game", (e) => {
+    let observedGameEvent = false;
+    await listen<{ running: boolean | null }>("game", (e) => {
+      observedGameEvent = true;
       this.gameRunning = e.payload.running;
       void this.apply();
     });
+    try {
+      const { invoke } = await import("@tauri-apps/api/core");
+      const running = await invoke<boolean | null>("is_game_running");
+      if (!observedGameEvent) this.gameRunning = running;
+    } catch {
+      /* unavailable detection keeps the overlay visible */
+    }
     await listen("overlay:show", () => void this.set({ on: true }));
     await this.restorePosition();
     await this.registerHotkeys();
@@ -150,7 +149,7 @@ export class OverlayHost {
   private async apply() {
     const w = this.win;
     if (!w) return;
-    const visible = this.settings.on && (!this.settings.autoHide || this.gameRunning);
+    const visible = this.settings.on && (!this.settings.autoHide || this.gameRunning !== false);
     try {
       if (visible) {
         await w.show();

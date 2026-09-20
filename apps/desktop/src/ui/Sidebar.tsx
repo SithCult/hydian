@@ -230,6 +230,7 @@ function UserPanel() {
 }
 
 function StatusPopover({ onClose }: { onClose: () => void }) {
+  const busy = useApp((s) => !!(s.activeKey && s.characterActions[s.activeKey]));
   const me = useApp(selectMe);
   const { status: myStatus, instance } = useApp(selectMyStatus);
   const setStatus = useApp((s) => s.setStatus);
@@ -261,13 +262,14 @@ function StatusPopover({ onClose }: { onClose: () => void }) {
           </Button>
         </div>
       )}
-      <div className="sect">Status</div>
+      <div className="sect">{busy ? "Updating privacy…" : "Status"}</div>
       {(Object.keys(STATUS_META) as RPStatus[]).map((k) => (
         <button
           key={k}
           className={`item ${myStatus === k ? "on" : ""}`}
           style={{ "--sc": STATUS_META[k].color } as CSSProperties}
-          onClick={() => setStatus(k)}
+          disabled={busy}
+          onClick={() => void setStatus(k)}
         >
           <span className="d" />
           <div>

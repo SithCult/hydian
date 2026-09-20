@@ -32,7 +32,10 @@ export function Plaque() {
       </div>
       <figcaption className={s.cap}>
         The stamps are the Co-created with AI and Human in the Loop badges from{" "}
-        <a href="https://madebyhuman.iamjarl.com/">Made by Human</a>, MIT licensed.
+        <a href="https://madebyhuman.iamjarl.com/" target="_blank" rel="noopener noreferrer">
+          Made by Human
+        </a>
+        , MIT licensed.
       </figcaption>
     </figure>
   );

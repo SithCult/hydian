@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "clipboard",
+  "description": "Copy the installation ID from the main window for support.",
+  "windows": ["main"],
+  "permissions": ["clipboard-manager:allow-write-text"]
+}

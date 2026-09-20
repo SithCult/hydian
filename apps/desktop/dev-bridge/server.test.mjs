@@ -148,6 +148,23 @@ test("missing directories and a file selected as a folder expose distinct stable
   const missing = await request("readDir", { path: path.join(documents, "CombatLogs") });
   assert.equal(missing.status, 404);
   assert.equal(JSON.parse(missing.body).code, "not-found");
+  assert.equal(missing.body.includes(documents), false);
+  assert.equal(JSON.parse(missing.body).error, "Folder or file not found.");
   const notDirectory = await request("readDir", { path: log });
   assert.equal(JSON.parse(notDirectory.body).code, "not-directory");
+  assert.equal(notDirectory.body.includes(log), false);
+});
+
+test("directory listings support names-only requests and reject arbitrary regular expressions", async (t) => {
+  const { request, documents } = await fixture(t);
+  const names = await request("readDir", { path: documents, filter: "^$" });
+  assert.equal(names.status, 200);
+  assert.deepEqual(JSON.parse(names.body), [{ name: "combat_test.txt", isDir: false, size: 0, mtime: 0 }]);
+  const metadata = await request("readDir", { path: documents });
+  assert.equal(JSON.parse(metadata.body)[0].size, "synthetic combat log".length);
+  for (const filter of ["(a+)+$", "[", ".*"]) {
+    const denied = await request("readDir", { path: documents, filter });
+    assert.equal(denied.status, 400);
+    assert.deepEqual(JSON.parse(denied.body), { error: "Invalid request.", code: "unavailable" });
+  }
 });

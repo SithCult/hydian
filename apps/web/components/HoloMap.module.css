@@ -120,14 +120,6 @@
   letter-spacing: 0.08em;
   fill: var(--holo);
 }
-.ghost circle {
-  fill: rgba(10, 16, 32, 0.9);
-  stroke: var(--ink-faint);
-  stroke-dasharray: 3 2;
-}
-.ghost text {
-  fill: var(--ink-muted);
-}
 .me circle:not(.pulse) {
   stroke: #fff;
   stroke-width: 2.5;

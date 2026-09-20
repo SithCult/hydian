@@ -47,7 +47,6 @@ export function MapLegend({
     [swatch(STATUS_META.ic.color), STATUS_META.ic.label],
     [swatch(STATUS_META.ooc.color), STATUS_META.ooc.label],
     [swatch(LFRP_COLOR), "Looking for RP", "beacon"],
-    [swatch("transparent", { outline: "1px dashed #8b8f98" }), "Not on Hydian"],
   ];
   return (
     <div className="map-legend">
@@ -140,38 +139,28 @@ export function HoverCard({ p, pos, planetId }: { p: Player; pos: [number, numbe
             {p.name}
             {p.isMe ? " (you)" : ""} <span className="srv">{SERVER_NAMES[p.server] ?? p.server}</span>
           </div>
-          {p.isSeen ? (
-            <span className="cl" style={{ color: "var(--text-faint)" }}>
-              Not on Hydian
-            </span>
-          ) : (
-            <span className="cl">
-              {p.lfrp && p.status !== "invisible" ? "Looking for RP" : STATUS_META[p.status].label}
-              {p.instance ? ` · instance ${p.instance}` : ""}
-            </span>
-          )}
+          <span className="cl">
+            {p.lfrp && p.status !== "invisible" ? "Looking for RP" : STATUS_META[p.status].label}
+            {p.instance ? ` · instance ${p.instance}` : ""}
+          </span>
         </div>
       </div>
-      {p.isSeen ? (
-        <div className="stx">last seen {ago(p.lastActive)}</div>
-      ) : (
-        <>
-          {loc && (
-            <div className="stx" style={{ fontStyle: "normal", color: "var(--accent)" }}>
-              {loc.path.join(" › ")}
-            </div>
-          )}
-          <div className="stx">
-            {STATUS_META[p.status].label} · {presenceOf(p.lastActive) === "active" ? "active now" : ago(p.lastActive)}
+      <>
+        {loc && (
+          <div className="stx" style={{ fontStyle: "normal", color: "var(--accent)" }}>
+            {loc.path.join(" › ")}
           </div>
-          {Date.now() - p.lastActive > STALE_POS_MS && (
-            <div className="stx" style={{ color: "var(--text-faint)" }}>
-              Position from {ago(p.lastActive)}. The game only logs a position when something happens; any ability
-              refreshes it.
-            </div>
-          )}
-        </>
-      )}
+        )}
+        <div className="stx">
+          {STATUS_META[p.status].label} · {presenceOf(p.lastActive) === "active" ? "active now" : ago(p.lastActive)}
+        </div>
+        {Date.now() - p.lastActive > STALE_POS_MS && (
+          <div className="stx" style={{ color: "var(--text-faint)" }}>
+            Position from {ago(p.lastActive)}. The game only logs a position when something happens; any ability
+            refreshes it.
+          </div>
+        )}
+      </>
     </div>
   );
 }

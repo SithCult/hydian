@@ -8,6 +8,7 @@ import { OS } from "./core/platform";
 import "./styles/tailwind.css";
 import "./styles/fonts.css";
 import "./styles/app.css";
+import "./styles/game-link.css";
 import "./styles/onboarding.css";
 
 // The same bundle serves two windows: the app, and the transparent in-game overlay (index.html?overlay=1).

@@ -1,0 +1,328 @@
+.game-link-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  font-size: 13px;
+  line-height: 1.55;
+}
+.game-link-status {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  padding: 18px;
+  background: var(--bg-main);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+}
+.game-link-symbol {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+.game-link-symbol svg {
+  width: 19px;
+  height: 19px;
+}
+.game-link-status.ready .game-link-symbol {
+  color: #80d8a5;
+  background: rgba(35, 165, 90, 0.12);
+}
+.game-link-status-copy {
+  min-width: 0;
+}
+.game-link-panel .game-link-status h3 {
+  margin: 0 0 5px;
+  font: 600 16px/1.35 var(--font-display);
+  letter-spacing: -0.01em;
+  text-transform: none;
+  color: var(--text-strong);
+}
+.game-link-status p,
+.game-link-hint {
+  margin: 0;
+  color: var(--text-muted);
+}
+.combat-logging-guide ol {
+  counter-reset: log-steps;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 16px;
+}
+.combat-logging-guide li {
+  display: flex;
+  gap: 13px;
+  align-items: flex-start;
+  counter-increment: log-steps;
+}
+.combat-logging-guide li::before {
+  content: counter(log-steps);
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 25px;
+  height: 25px;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  font: 500 12px var(--font-display);
+  color: var(--accent);
+}
+.combat-logging-guide li b,
+.combat-logging-guide li span span {
+  display: block;
+}
+.combat-logging-guide li b {
+  font-weight: 600;
+  color: var(--text-strong);
+  margin-bottom: 3px;
+}
+.combat-logging-guide li span span {
+  color: var(--text-muted);
+}
+.game-link-disclosure {
+  border-top: 1px solid var(--line-soft);
+}
+.game-link-disclosure > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 14px 0 0;
+  list-style: none;
+  cursor: pointer;
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 500;
+}
+.game-link-disclosure > summary::-webkit-details-marker {
+  display: none;
+}
+.game-link-disclosure > summary:hover {
+  color: var(--text-strong);
+}
+.game-link-disclosure > summary:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 4px;
+  border-radius: 2px;
+}
+.game-link-disclosure > summary span {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.game-link-disclosure > summary svg {
+  width: 15px;
+  height: 15px;
+  flex: none;
+}
+.game-link-disclosure[open] > summary > svg,
+.game-link-disclosure[open] > summary > span:last-child > svg {
+  transform: rotate(90deg);
+}
+.game-link-picture {
+  border: 0;
+  margin-left: 38px;
+}
+.game-link-picture summary {
+  justify-content: flex-start;
+  gap: 6px;
+  color: var(--accent);
+  padding-top: 14px;
+}
+.game-link-picture figure {
+  margin: 14px 0 0;
+}
+.game-link-picture img {
+  width: 100%;
+  height: auto;
+  border-radius: 6px;
+  border: 1px solid var(--line);
+}
+.game-link-picture figcaption {
+  margin-top: 8px;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+.game-link-image-button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  cursor: zoom-in;
+}
+.game-link-image-button span {
+  display: block;
+  color: var(--accent);
+  font-size: 12px;
+  margin-top: 7px;
+}
+.game-link-image-button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 4px;
+}
+.game-link-image-dialog {
+  width: min(1400px, calc(100vw - 48px));
+  max-width: none;
+}
+.game-link-image-dialog img {
+  width: 100%;
+  max-height: calc(100vh - 150px);
+  object-fit: contain;
+}
+.game-link-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px 14px;
+}
+.game-link-actions > span {
+  flex: 1 1 160px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.game-folder-content {
+  display: grid;
+  gap: 14px;
+  padding-top: 14px;
+}
+.game-folder-content p {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+.game-folder-content > button {
+  justify-self: start;
+}
+.game-path-field label {
+  display: block;
+  color: var(--text);
+  font-weight: 500;
+  margin-bottom: 6px;
+}
+.game-path-field > div {
+  display: flex;
+  gap: 8px;
+}
+.game-path-field input {
+  min-width: 0;
+  flex: 1;
+  border: 1px solid var(--line-soft);
+  border-radius: 6px;
+  padding: 8px 10px;
+  color: var(--text);
+  background: var(--bg-input);
+  font-size: 12px;
+}
+.game-path-field input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+.game-link-diagnostics dl {
+  display: grid;
+  gap: 10px;
+  padding-top: 14px;
+  margin: 0;
+  font-size: 12px;
+}
+.game-link-diagnostics dl > div {
+  display: grid;
+  grid-template-columns: 105px minmax(0, 1fr);
+  gap: 12px;
+}
+.game-link-diagnostics dt {
+  color: var(--text-muted);
+}
+.game-link-diagnostics dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+  font-variant-numeric: tabular-nums;
+}
+.game-link-banner {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 18px;
+  background: linear-gradient(100deg, var(--accent-soft), var(--bg-side));
+  border-bottom: 1px solid var(--line);
+  color: var(--accent);
+}
+.game-link-banner > svg {
+  width: 19px;
+  height: 19px;
+  flex: none;
+}
+.game-link-banner > div {
+  flex: 1;
+  min-width: 0;
+  font-size: 12px;
+}
+.game-link-banner strong {
+  display: block;
+  color: var(--text-strong);
+  font-weight: 600;
+}
+.game-link-banner span {
+  color: var(--text-muted);
+}
+.ob-pane:focus {
+  outline: none;
+}
+.ob-game-link {
+  overflow-y: auto;
+  padding: 28px 32px 12px;
+}
+.ob-game-link h2 {
+  margin: 0 0 6px;
+  font: 600 24px/1.3 var(--font-display);
+  letter-spacing: -0.02em;
+  color: var(--text-strong);
+}
+.ob-game-link .game-link-panel {
+  gap: 16px;
+}
+.ob-game-intro {
+  margin: 0 0 22px;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+.game-link-status.checking .game-link-symbol svg,
+.game-link-spinner {
+  animation: game-link-spin 1.2s linear infinite;
+}
+@keyframes game-link-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .game-link-status.checking .game-link-symbol svg,
+  .game-link-spinner {
+    animation: none;
+  }
+}
+@media (max-width: 620px) {
+  .game-link-banner {
+    flex-wrap: wrap;
+  }
+  .game-link-banner > div {
+    flex-basis: calc(100% - 32px);
+  }
+  .game-link-banner > button {
+    margin-left: 31px;
+  }
+  .game-path-field > div {
+    flex-wrap: wrap;
+  }
+  .game-path-field input {
+    flex-basis: 100%;
+  }
+  .ob-game-link {
+    padding: 22px 22px 10px;
+  }
+}

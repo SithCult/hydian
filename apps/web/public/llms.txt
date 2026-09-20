@@ -2,7 +2,7 @@
 
 > Free, open-source desktop companion for roleplay in Star Wars: The Old Republic (SWTOR). It shows who is In Character where, on the game's own maps, down to the interior floor. Windows and macOS. No account.
 
-Hydian reads the combat log the game writes and the settings folder for character names. Visibility is per character and starts Invisible. The app uploads gameplay updates and enabled history for shared characters, nearby-player sightings and friend connections. Friend connections can upload while own characters are Invisible. Notes and the journal stay on the device. Settings › Privacy removes installation links while retaining gameplay samples with replacement identifiers.
+Hydian reads the combat log the game writes and the settings folder for character names. Visibility is per character and starts Invisible. Public lists show only active characters set to In Character or Out of Character; own character controls remain private. The app uploads gameplay updates and enabled history for shared characters, nearby-player sightings and friend connections. Friend connections can upload while own characters are Invisible. Notes and the journal stay on the device. Remove from Hydian retracts the character profile and structured gameplay records submitted by this device, and blocks pending uploads until explicit sharing resumes. Settings › Privacy removes installation links while retaining gameplay samples with replacement identifiers.
 
 ## Pages
 
@@ -15,7 +15,7 @@ Hydian reads the combat log the game writes and the settings folder for characte
 
 - Live map on the in-game artwork: planets, regions, every interior floor, 3D view of stacked floors
 - Status: In Character / Out of Character / Invisible, a Looking-for-RP beacon, server instance number
-- Registry of everyone sharing a character on a server; friends
+- Registry of active characters sharing on a server; friends
 - Notes on characters (in-game notes imported) and a rich-text journal, stored locally
 - Heatmap and activity statistics
 - In-game overlay: transparent, click-through card over the game

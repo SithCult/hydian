@@ -3,6 +3,8 @@ import { randomUUID } from "node:crypto";
 import { after, before, beforeEach, test } from "node:test";
 import Fastify from "fastify";
 import { Client, Pool } from "pg";
+import { EventEmitter } from "node:events";
+import type { WebSocket } from "ws";
 
 if (!process.env.TEST_DATABASE_URL) throw new Error("Set TEST_DATABASE_URL to a local test PostgreSQL database.");
 const databaseUrl = new URL(process.env.TEST_DATABASE_URL);
@@ -14,7 +16,7 @@ process.env.PGSSLMODE = "disable";
 
 const { pool, migrate } = await import("../src/db.ts");
 const { clearCaches } = await import("../src/cache.ts");
-const { playersOn, leave } = await import("../src/presence.ts");
+const { playersOn, leave, join, STALE_MS } = await import("../src/presence.ts");
 const { default: pings } = await import("../src/routes/pings.ts");
 const { default: registry } = await import("../src/routes/registry.ts");
 const { default: me } = await import("../src/routes/me.ts");
@@ -64,7 +66,7 @@ before(async () => {
 });
 beforeEach(async () => {
   await pool.query(
-    "TRUNCATE pings, sightings, characters, installs, friends, feedback, erased_installs RESTART IDENTITY",
+    "TRUNCATE pings, sightings, characters, installs, friends, feedback, erased_installs, removed_characters RESTART IDENTITY",
   );
   clearCaches();
   for (const player of playersOn()) leave(player.key);
@@ -300,34 +302,11 @@ test("deletion waits for committed uploads to update presence before removing it
   assert.equal((await pool.query("SELECT * FROM pings WHERE character_name <> 'deleted'")).rowCount, 0);
 });
 
-test("a registry read started before deletion cannot restore the deleted profile in cache", async (t) => {
+test("registry snapshots do not retain erased profiles for later reads", async () => {
   await send();
-  clearCaches();
-  const selected = gate();
-  const resume = gate();
-  const query = pool.query;
-  let intercept = true;
-  t.mock.method(pool, "query", function (this: Pool, ...args: unknown[]) {
-    const result = Reflect.apply(query, this, args);
-    if (intercept && String(args[0]).includes("SELECT c.id::text")) {
-      intercept = false;
-      return result.then(async (value: unknown) => {
-        selected.resolve();
-        await resume.promise;
-        return value;
-      });
-    }
-    return result;
-  } as typeof query);
-  const earlierRead = getRegistry();
-  await selected.promise;
-  try {
-    assert.equal((await erase()).statusCode, 200);
-  } finally {
-    resume.resolve();
-    await earlierRead;
-  }
-  assert.equal((await earlierRead).json().characters.length, 1, "the earlier request observed the old snapshot");
+  const earlierRead = await getRegistry();
+  assert.equal((await erase()).statusCode, 200);
+  assert.equal(earlierRead.json().characters.length, 1);
   assert.deepEqual((await getRegistry()).json().characters, []);
 });
 
@@ -420,4 +399,213 @@ test("oppositely ordered character batches acquire their locks without a deadloc
   );
   assert.deepEqual(results.map((r) => r.json().stored).sort(), [0, 2]);
   assert.equal((await pool.query("SELECT * FROM pings")).rowCount, 2);
+});
+
+const removeCharacter = (installId = installA, characterId = "123") =>
+  app.inject({
+    method: "DELETE",
+    url: `/v1/me/characters/${server}/${characterId}`,
+    headers: { "x-install-id": installId },
+  });
+const restoreCharacter = (installId = installA, characterId = "123") =>
+  app.inject({
+    method: "POST",
+    url: `/v1/me/characters/${server}/${characterId}/restore`,
+    headers: { "x-install-id": installId },
+  });
+
+test("history, unknown status, sightings and friend edges cannot publish an identity", async () => {
+  await send(installA, { historical: true });
+  await send(installA, { pings: [ping({ characterId: "124", status: null })] });
+  await send(installA, { pings: [ping({ characterId: "125", kind: "history" })] });
+  await send(installA, {
+    pings: [],
+    sightings: [{ server, seenBy: "123", characterId: "126", characterName: "Hidden sighting" }],
+  });
+  await app.inject({
+    method: "POST",
+    url: "/v1/friends",
+    payload: { installId: installB, server, characterId: "123", action: "add" },
+  });
+  assert.deepEqual((await getRegistry()).json().characters, []);
+  assert.deepEqual(playersOn(server), []);
+  assert.equal((await pool.query("SELECT count(*) FROM pings WHERE status = 'ic'")).rows[0].count, "0");
+});
+
+test("registry and presence expose only active IC/OOC profiles and expire without waiting for cleanup", async (t) => {
+  const now = Date.now();
+  await send(installA, { pings: [ping({ logTs: now }), ping({ characterId: "124", status: "ooc", logTs: now })] });
+  assert.deepEqual(
+    (await getRegistry()).json().characters.map((p: { status: string }) => p.status),
+    ["ic", "ooc"],
+  );
+  const response = JSON.stringify((await getRegistry()).json());
+  for (const privateValue of [installA, "private raw log", "Jedi Knight"])
+    assert.equal(response.includes(privateValue), false);
+  t.mock.method(Date, "now", () => now + STALE_MS);
+  assert.deepEqual((await getRegistry()).json().characters, []);
+  assert.deepEqual(playersOn(server), []);
+});
+
+test("stale or future-dated pings cannot create an indefinitely active profile", async (t) => {
+  const now = Date.now();
+  await send(installA, { pings: [ping({ logTs: now - STALE_MS - 1, kind: "heartbeat" })] });
+  assert.deepEqual((await getRegistry()).json().characters, []);
+  await send(installA, { pings: [ping({ logTs: now + 30 * 86400000 })] });
+  t.mock.method(Date, "now", () => now + STALE_MS + 1000);
+  assert.deepEqual((await getRegistry()).json().characters, []);
+});
+
+test("character removal deletes this device's records and rejects delayed history until explicit restore", async () => {
+  await send(installA, {
+    pings: [ping(), ping({ characterId: "124", characterName: "Keep me" })],
+    sightings: [
+      { server, seenBy: "123", characterId: "789", characterName: "Seen by removed" },
+      { server, seenBy: "124", characterId: "123", characterName: "Removed target" },
+      { server, seenBy: "124", characterId: "789", characterName: "Keep sighting" },
+    ],
+  });
+  const result = await removeCharacter();
+  assert.equal(result.statusCode, 200);
+  assert.deepEqual(result.json(), { ok: true, characters: 1, pings: 1, sightings: 2 });
+  assert.deepEqual(
+    (await getRegistry()).json().characters.map((p: { characterId: string }) => p.characterId),
+    ["124"],
+  );
+  assert.equal((await pool.query("SELECT * FROM sightings")).rowCount, 1);
+  assert.equal((await removeCharacter()).statusCode, 200);
+  await app.inject({
+    method: "POST",
+    url: "/v1/friends",
+    payload: { installId: installA, server, characterId: "123", action: "add" },
+  });
+  assert.equal(
+    (await pool.query("SELECT * FROM friends WHERE install_id = $1 AND character_id = 123", [installA])).rowCount,
+    0,
+  );
+  for (const historical of [false, true]) {
+    const upload = await send(installA, {
+      historical,
+      sightings: [{ server, seenBy: "123", characterId: "789", characterName: "Late sighting" }],
+    });
+    assert.equal(upload.statusCode, 200);
+    assert.equal(upload.json().stored, 0);
+  }
+  assert.equal((await pool.query("SELECT * FROM pings WHERE character_id = 123")).rowCount, 0);
+  assert.equal((await restoreCharacter()).statusCode, 200);
+  assert.deepEqual(
+    playersOn(server).map((p) => p.characterId),
+    ["124"],
+  );
+  assert.equal((await send()).json().stored, 1);
+  assert.equal((await getRegistry()).json().characters.length, 2);
+});
+
+test("character removal affects only this installation and preserves another installation's data", async () => {
+  await send();
+  assert.equal((await removeCharacter(installB)).statusCode, 200);
+  assert.equal(playersOn(server)[0].name, "Test player");
+  await restoreCharacter(installB);
+  await pool.query("UPDATE characters SET last_seen = now() - interval '2 days'");
+  await send(installB, { pings: [ping({ characterName: "Other device" })] });
+  assert.equal((await removeCharacter()).statusCode, 200);
+  assert.equal(playersOn(server)[0].name, "Other device");
+  assert.equal((await pool.query("SELECT * FROM pings WHERE install_id = $1", [installB])).rowCount, 1);
+  assert.equal((await pool.query("SELECT * FROM pings WHERE install_id = $1", [installA])).rowCount, 0);
+  assert.equal((await send(installB)).json().stored, 1);
+  await restoreCharacter(installB);
+  assert.equal((await send()).json().stored, 0, "another device cannot clear the removal tombstone");
+});
+
+test("removal canonicalizes UUID and character ID and validates all credentials", async () => {
+  const install = "AABBCCDD-AABB-4000-8000-000000000001";
+  await send(install, { pings: [ping({ characterId: "000123" })] });
+  assert.equal((await removeCharacter(install.toLowerCase(), "123")).statusCode, 200);
+  assert.deepEqual(playersOn(server), []);
+  assert.equal((await send(install, { pings: [ping({ characterId: "000123" })] })).json().stored, 0);
+  for (const id of ["abc", "-1", "9223372036854775808"]) {
+    assert.equal((await removeCharacter(install, id)).statusCode, 400);
+    assert.equal((await restoreCharacter(install, id)).statusCode, 400);
+  }
+  assert.equal((await removeCharacter("bad-install")).statusCode, 400);
+  assert.equal((await restoreCharacter("bad-install")).statusCode, 400);
+  await erase(install);
+  assert.equal((await removeCharacter(install)).statusCode, 410);
+  assert.equal((await restoreCharacter(install)).statusCode, 410);
+});
+
+test("failed character removal rolls back its tombstone, stored data and presence", async () => {
+  await send();
+  await pool.query(`CREATE FUNCTION fail_character_removal() RETURNS trigger LANGUAGE plpgsql AS $$
+    BEGIN RAISE EXCEPTION 'test failure'; END $$;
+    CREATE TRIGGER fail_character_removal BEFORE DELETE ON characters FOR EACH ROW EXECUTE FUNCTION fail_character_removal()`);
+  try {
+    assert.equal((await removeCharacter()).statusCode, 500);
+    assert.equal((await pool.query("SELECT * FROM removed_characters")).rowCount, 0);
+    assert.equal((await pool.query("SELECT * FROM pings")).rowCount, 1);
+    assert.equal(playersOn(server).length, 1);
+  } finally {
+    await pool.query("DROP TRIGGER fail_character_removal ON characters; DROP FUNCTION fail_character_removal()");
+  }
+});
+
+test("a concurrent upload waiting behind character removal cannot resurrect it", async () => {
+  await send();
+  const blocker = await pool.connect();
+  try {
+    await blocker.query("BEGIN");
+    await blocker.query("SELECT id FROM characters WHERE server = $1 AND id = 123 FOR UPDATE", [server]);
+    const deletion = removeCharacter();
+    const deadline = Date.now() + 5000;
+    while (true) {
+      const waiting = await pool.query(`SELECT 1 FROM pg_stat_activity
+        WHERE datname = current_database() AND wait_event_type = 'Lock' AND query LIKE 'DELETE FROM characters WHERE install_id%'`);
+      if (waiting.rowCount) break;
+      assert.ok(Date.now() < deadline, "character removal did not reach the blocked row");
+      await new Promise((resolve) => setImmediate(resolve));
+    }
+    const delayed = send();
+    await blocker.query("COMMIT");
+    assert.equal((await deletion).statusCode, 200);
+    assert.equal((await delayed).json().stored, 0);
+    assert.deepEqual(playersOn(server), []);
+    assert.equal((await pool.query("SELECT * FROM pings")).rowCount, 0);
+  } finally {
+    await blocker.query("ROLLBACK");
+    blocker.release();
+  }
+});
+
+test("live snapshots never reveal expired identities and removal broadcasts leave without private fields", async (t) => {
+  const now = Date.now();
+  await send(installA, { pings: [ping({ logTs: now })] });
+  t.mock.method(Date, "now", () => now + STALE_MS);
+  const socket = Object.assign(new EventEmitter(), {
+    readyState: 1,
+    send: (data: string) => messages.push(JSON.parse(data)),
+  });
+  const messages: { type: string; players?: unknown[]; key?: string }[] = [];
+  join(server, socket as unknown as WebSocket);
+  try {
+    assert.deepEqual([...messages], [{ type: "snapshot", players: [] }]);
+    await send();
+    await removeCharacter();
+    assert.deepEqual(
+      messages.map((message) => message.type),
+      ["snapshot", "ping", "leave"],
+    );
+    assert.equal(messages.at(-1)?.key, `${server}:123`);
+    assert.equal(JSON.stringify(messages).includes(installA), false);
+    assert.equal(JSON.stringify(messages).includes("private raw log"), false);
+  } finally {
+    socket.emit("close");
+  }
+});
+
+test("removal before the first upload blocks delayed data without affecting another installation", async () => {
+  assert.equal((await removeCharacter()).statusCode, 200);
+  assert.equal((await send()).json().stored, 0);
+  assert.deepEqual(playersOn(server), []);
+  assert.equal((await send(installB)).json().stored, 1);
+  assert.equal(playersOn(server).length, 1);
 });

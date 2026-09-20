@@ -45,8 +45,11 @@ export default function About() {
 
         <h2>Who</h2>
         <p>
-          Hydian is made by <a href={SITE.github}>SithCult</a>, Star Wars fans who roleplay in The Old Republic. The
-          code is open source under the MIT licence.
+          Hydian is made by{" "}
+          <a href={SITE.github} target="_blank" rel="noopener noreferrer">
+            SithCult
+          </a>
+          , Star Wars fans who roleplay in The Old Republic. The code is open source under the MIT licence.
         </p>
         <div className={s.photos}>
           <figure>

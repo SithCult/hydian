@@ -6,6 +6,8 @@ A desktop companion for roleplayers. Pick a server and a planet and see who is I
 own maps, down to the floor of the building. Set your status, flag that you are looking for RP, keep friends, notes
 and a journal. Hydian reads the combat log the game writes and needs no account.
 
+Hydian is a free, open-source, non-profit fan project made by players, for players.
+
 [hydian.org](https://hydian.org) · [Download](https://hydian.org/download) ·
 [Discussions](https://github.com/SithCult/hydian/discussions)
 
@@ -16,8 +18,8 @@ and a journal. Hydian reads the combat log the game writes and needs no account.
   Promenade"); stacked floors show one level at a time, or all of them in the 3D view.
 - **Status**: _In Character_, _Out of Character_ or _Invisible_, a _Looking for RP_ beacon and the server
   instance you are in. Sharing is per character and starts Invisible.
-- **Registry**: everyone sharing a character on your server, where they are and when they were last active.
-  Players your log mentions who are not on Hydian show as a name and a last-seen.
+- **Registry**: active characters sharing on your server, where they are and when they were last active.
+  Invisible characters stay off the map and public lists; your own characters remain available privately.
 - **Friends, notes, journal**: friend the people you play with; names on your in-game friends lists come across
   on their own (read only, the game's lists are never written). Notes on characters (your in-game notes are
   imported) and a rich-text journal of your character's story, both stored on your device.
@@ -107,9 +109,9 @@ See [local development](docs/LOCAL-DEVELOPMENT.md) for a full local setup and a 
 
 Windows: logs in `%USERPROFILE%\Documents\Star Wars - The Old Republic\CombatLogs`, characters from
 `%LOCALAPPDATA%\SWTOR\swtor\settings`. On macOS, Hydian looks for the same folders inside CrossOver or Whisky
-bottles. If detection misses your installation, use Settings › Game link › _advanced…_ to choose them.
+bottles. If detection misses your installation, use Settings › Game link › _Game folders_ to choose them.
 In SWTOR, turn on _Preferences → Combat Logging → Enable Combat Logging to File_, enter combat to create a log,
-then choose _Rescan logs_ in Hydian.
+then choose _Check for logs_ in Hydian.
 
 ### Releases and updates
 

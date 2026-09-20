@@ -15,8 +15,8 @@ const FLOORS = [
 
 // [x, y] in the 720 x 540 stage, per floor
 const SPOTS = [
-  { me: [377, 273], a: [337, 79], b: [636, 247], lfrp: [281, 444], ghost: [155, 121] },
-  { me: [489, 219], a: [194, 135], b: [665, 233], lfrp: [672, 430], ghost: [194, 318] },
+  { me: [377, 273], a: [337, 79], b: [636, 247], lfrp: [281, 444] },
+  { me: [489, 219], a: [194, 135], b: [665, 233], lfrp: [672, 430] },
 ] as const;
 
 export function HoloMap() {
@@ -68,10 +68,6 @@ export function HoloMap() {
             ))}
             <svg className={s.map} viewBox="0 0 720 540" aria-label="A rendered preview of the live map">
               <g className={s.pins}>
-                <g className={`${s.pin} ${s.ghost}`} transform={at(spots.ghost)}>
-                  <circle r="11" />
-                  <text>KE</text>
-                </g>
                 <g className={s.pin} style={{ "--h": 40 } as React.CSSProperties} transform={at(spots.a)}>
                   <circle r="12" />
                   <text>TN</text>
@@ -129,10 +125,6 @@ export function HoloMap() {
             <span>
               <i className="d lfrp" />
               Looking for RP
-            </span>
-            <span>
-              <i className="d ghost" />
-              Not on Hydian
             </span>
           </div>
         </motion.div>

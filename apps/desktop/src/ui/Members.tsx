@@ -1,7 +1,7 @@
 import { STATUS_META, presenceOf, type Player, type RPStatus } from "../model";
 import { useApp } from "../store";
 import { selectPlayersOn } from "../selectors";
-import { Avatar, Icons, ago } from "./bits";
+import { Avatar, Icons } from "./bits";
 import { locate } from "../data/maps";
 import { Tip } from "./Tip";
 
@@ -21,9 +21,6 @@ export function Members() {
     .toLowerCase();
   useApp((s) => s.showPhases); // re-render when phase visibility changes (affects location labels)
 
-  const seen = [...players.filter((p) => p.isSeen)].sort(
-    (a, b) => Number(!!friends[b.key]) - Number(!!friends[a.key]) || a.name.localeCompare(b.name),
-  );
   const groups = ORDER.map((st) => ({
     st,
     items: players
@@ -61,26 +58,7 @@ export function Members() {
             ))}
           </div>
         ))}
-        {seen.length > 0 && (
-          <div>
-            <Tip label="Players your combat log mentioned nearby." side="left">
-              <div className="mgroup">
-                Not on Hydian<span className="n">{seen.length}</span>
-              </div>
-            </Tip>
-            {seen.map((p) => (
-              <Row
-                key={p.key}
-                p={p}
-                starred={!!friends[p.key]}
-                hovered={hoverKey === p.key}
-                onHover={setHover}
-                onOpen={() => openModal({ kind: "profile", key: p.key })}
-              />
-            ))}
-          </div>
-        )}
-        {!groups.length && !seen.length && (
+        {!groups.length && (
           <div style={{ padding: 24, color: "var(--text-faint)", textAlign: "center", fontSize: 13 }}>
             No one on Hydian here right now.
           </div>
@@ -125,17 +103,13 @@ function Row({
           {!p.isSeen && p.lfrp && p.status !== "invisible" && <span className="lfrp-tag">LFRP</span>}
         </div>
         <div className="st">
-          {p.isSeen ? (
-            `last seen ${ago(p.lastActive)}`
-          ) : (
-            <>
-              {loc ? `${loc.label}` : STATUS_META[p.status].label}
-              {p.instance ? ` · instance ${p.instance}` : ""}
-              {presenceOf(p.lastActive) === "idle"
-                ? ` · idle ${Math.round((Date.now() - p.lastActive) / 60000)} min`
-                : ""}
-            </>
-          )}
+          <>
+            {loc ? `${loc.label}` : STATUS_META[p.status].label}
+            {p.instance ? ` · instance ${p.instance}` : ""}
+            {presenceOf(p.lastActive) === "idle"
+              ? ` · idle ${Math.round((Date.now() - p.lastActive) / 60000)} min`
+              : ""}
+          </>
         </div>
       </div>
     </div>

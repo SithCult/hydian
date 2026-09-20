@@ -11,8 +11,8 @@ export const STATUS_META: Record<RPStatus, { label: string; short: string; color
   invisible: {
     label: "Invisible",
     short: "OFF",
-    color: "#3f4147",
-    hint: "Nothing is sent. This character stays off the map",
+    color: "#949ba4",
+    hint: "Hidden from Hydian’s public map and player lists",
   },
 };
 /** Looking-for-RP is a flag on top of the status, not a status of its own. */
@@ -26,7 +26,7 @@ export interface CharStatus {
 export const DEFAULT_STATUS: CharStatus = { status: "invisible", lfrp: false, instance: null }; // sharing is opt-in per character
 export const INSTANCES = [1, 2, 3, 4, 5, 6] as const;
 
-/** Presence rule (client display; the backend keeps every record regardless).
+/** Presence windows for the client display.
  *  Idle/RP sessions can be silent in the combat log for a long time (p99 gap 13 min, max seen 47 min),
  *  so "active" is generous and "gone" is well past the longest real silence. */
 export const PRESENCE = { activeMs: 10 * 60_000, staleMs: 45 * 60_000 } as const;
@@ -64,3 +64,7 @@ export interface Player {
 
 /** Avatar colour: derived from the character id, so it is stable and needs no storage. */
 export const hueOf = (id: string) => (Number(id.slice(-3)) * 7) % 360;
+
+/** Public presence is opt-in and expires when gameplay activity stops. */
+export const isPublicPlayer = (p: Player, now = Date.now()) =>
+  !p.isSeen && (p.status === "ic" || p.status === "ooc") && presenceOf(p.lastActive, now) !== "gone";

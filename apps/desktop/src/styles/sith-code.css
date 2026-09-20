@@ -1,0 +1,193 @@
+.about-logo {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  border-radius: 50%;
+  outline-offset: 6px;
+}
+.about-logo:focus-visible {
+  outline: 2px solid var(--accent);
+}
+.about-logo svg {
+  transition:
+    color 500ms ease,
+    filter 500ms ease;
+}
+.about-logo:hover svg {
+  color: #ed6875;
+  filter: drop-shadow(0 0 8px #b72d4d80);
+}
+
+.sith-dialog {
+  isolation: isolate;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+  width: min(720px, calc(100vw - 40px));
+  max-width: none;
+  max-height: calc(100dvh - 40px);
+  overflow: auto;
+  padding: 42px 36px 34px;
+  border: 1px solid #8d3b475c;
+  border-radius: 20px;
+  color: #edd9d3;
+  background:
+    radial-gradient(ellipse at 50% 0%, #52132270, transparent 58%),
+    radial-gradient(ellipse at 50% 110%, #360c1880, transparent 65%), #0b070b;
+  box-shadow:
+    0 40px 140px #000c,
+    0 0 90px #790f2926,
+    inset 0 1px 0 #f5b2ba12;
+}
+.sith-dialog::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 20%;
+  right: 20%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, #dd6e7b, transparent);
+  box-shadow: 0 1px 16px #d22d5280;
+  pointer-events: none;
+}
+.sith-dialog[data-state="open"] {
+  animation: sith-arrive 650ms ease-out both;
+}
+.sith-dialog[data-state="closed"] {
+  animation: sith-dismiss 180ms ease-in both;
+}
+.sith-crest {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 76px;
+  height: 76px;
+  flex-shrink: 0;
+  margin-bottom: 14px;
+  color: #d86677;
+  border: 1px solid #a4475338;
+  border-radius: 50%;
+  background: radial-gradient(circle, #ae254b1a, transparent 70%);
+  box-shadow: 0 0 46px #a02b4721;
+}
+.sith-crest svg {
+  filter: drop-shadow(0 0 12px #b52e4c66);
+}
+.sith-title {
+  margin: 0;
+  color: #c49b9d;
+  font: 500 15px/1.4 var(--font-display);
+  letter-spacing: 0.05em;
+}
+.sith-code {
+  margin: 30px 0 32px;
+  text-align: center;
+  font:
+    400 clamp(19px, 2.4vw, 27px)/1.45 Georgia,
+    "Times New Roman",
+    serif;
+  letter-spacing: -0.02em;
+}
+.sith-code p {
+  margin: 0;
+  animation: sith-reveal 1.9s cubic-bezier(0.2, 0.65, 0.2, 1) both;
+}
+.sith-code p + p {
+  margin-top: 13px;
+}
+.sith-code p:last-child {
+  margin-top: 23px;
+  color: #f4a9ae;
+  font-size: 1.18em;
+  text-shadow: 0 0 30px #ca294b40;
+}
+.sith-release {
+  min-width: 152px;
+  min-height: 42px;
+  flex-shrink: 0;
+  color: #efc7c7;
+  border-color: #a448595c;
+  background: #6a1b2a26;
+  box-shadow: inset 0 1px 0 #efafba0a;
+}
+.sith-release:hover {
+  color: #fff0ec;
+  border-color: #dc7387;
+  background: #7e233c66;
+  box-shadow: 0 0 26px #b8294826;
+}
+.sith-release:focus-visible {
+  outline: 2px solid #ed9aa8;
+  outline-offset: 4px;
+  box-shadow: none;
+}
+@keyframes sith-arrive {
+  from {
+    opacity: 0;
+    filter: blur(4px);
+  }
+  to {
+    opacity: 1;
+    filter: blur(0);
+  }
+}
+@keyframes sith-dismiss {
+  to {
+    opacity: 0;
+  }
+}
+@keyframes sith-reveal {
+  from {
+    opacity: 0;
+    filter: blur(7px);
+  }
+  to {
+    opacity: 1;
+    filter: blur(0);
+  }
+}
+@media (max-height: 700px) {
+  .sith-dialog {
+    padding: 26px 28px;
+  }
+  .sith-crest {
+    width: 58px;
+    height: 58px;
+    margin-bottom: 10px;
+  }
+  .sith-crest svg {
+    width: 38px;
+    height: 38px;
+  }
+  .sith-code {
+    margin: 22px 0;
+    font-size: 22px;
+  }
+  .sith-code p + p {
+    margin-top: 9px;
+  }
+  .sith-code p:last-child {
+    margin-top: 16px;
+  }
+}
+@media (max-width: 540px) {
+  .sith-dialog {
+    width: calc(100vw - 24px);
+    padding: 28px 20px;
+    border-radius: 16px;
+  }
+  .sith-code {
+    font-size: 19px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .about-logo svg {
+    transition: none;
+  }
+  .sith-dialog,
+  .sith-dialog[data-state],
+  .sith-code p {
+    animation: none !important;
+  }
+}
