@@ -2256,6 +2256,12 @@ html.overlay-page #root {
   margin: 0 0 14px;
   font-size: 18px;
 }
+.settings-privacy-intro {
+  margin: 0 0 20px;
+  color: var(--text-muted);
+  font-size: 13px;
+  line-height: 1.6;
+}
 .modal.settings.tabbed .toggle:first-of-type {
   padding-top: 4px;
 }

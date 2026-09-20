@@ -2,7 +2,7 @@
 import { isTauri } from "../../core/fs";
 import { useApp, type SettingsTab } from "../../store";
 import { Private } from "../bits";
-import { Logo } from "../Logo";
+import { AboutLogo } from "../AboutLogo";
 import { IS_MAC, MOD, modShift } from "../../core/platform";
 import { PrivacyPolicyLink } from "../PrivacyPolicyLink";
 import { WebsitePageLink } from "../WebsitePageLink";
@@ -246,20 +246,9 @@ function PrivacyTab() {
   const openModal = useApp((s) => s.openModal);
   return (
     <>
-      <p className="note">
-        <PrivacyPolicyLink />
-      </p>
-      <p className="note">
-        Sharing is per character and starts Invisible: set a character to In Character or Out of Character to put it on
-        the map. Others see a name, a status and a place.{" "}
-        <Button
-          variant="ghost"
-          size="sm"
-          style={{ padding: "0 4px", fontSize: 12 }}
-          onClick={() => openModal({ kind: "notice" })}
-        >
-          Read the full notice
-        </Button>
+      <p className="settings-privacy-intro">
+        Characters start Invisible. In My characters, choose In Character or Out of Character to appear to other players
+        while active. <PrivacyPolicyLink />
       </p>
       <Toggle
         title="Upload log history"
@@ -276,9 +265,9 @@ function PrivacyTab() {
       </Toggle>
       <div className="toggle" style={{ borderBottom: 0 }}>
         <div className="l">
-          <b>Notes and journal stay on this device</b>
+          <b>Notes and journal</b>
           <span>
-            Anything marked <Private /> is stored here and nowhere else.
+            Marked <Private /> and saved only on this device.
           </span>
         </div>
       </div>
@@ -286,8 +275,8 @@ function PrivacyTab() {
         <div className="l">
           <b>Delete what this device sent</b>
           <span>
-            Removes this installation and its friend connections. Uploaded gameplay samples retain time and place with
-            replacement identifiers. This cannot be undone.
+            Removes this device’s shared characters and friend connections. Gameplay samples keep their time and place
+            under replacement identifiers. This cannot be undone.
           </span>
         </div>
         <Button variant="destructive" size="sm" onClick={() => openModal({ kind: "offboard" })}>
@@ -303,7 +292,7 @@ function AboutTab() {
   return (
     <>
       <div className="notice-brand">
-        <Logo size={40} />
+        <AboutLogo />
         <div className="wordmark">
           Hydian<span>Where roleplay is happening in SWTOR</span>
         </div>
