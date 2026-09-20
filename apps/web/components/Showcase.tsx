@@ -22,11 +22,11 @@ const FEATURES: { title: string; line: string; text: ReactNode; demo: ReactNode 
   },
   {
     title: "Registry & friends",
-    line: "Everyone on your server, in one place.",
+    line: "Find players sharing right now.",
     text: (
       <>
-        Who shares a character here, where they are, when they were last around. Friend the people you play with and
-        they sort to the top; your in-game friends come along on their own.
+        Active characters set to In Character or Out of Character, with their current location and status. Friend the
+        people you play with and they sort to the top when sharing; your in-game friends come along on their own.
       </>
     ),
     demo: <RegistryDemo />,

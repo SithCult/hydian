@@ -41,10 +41,13 @@ function broadcast(server: string, msg: unknown) {
   for (const ws of s) if (ws.readyState === 1) ws.send(data);
 }
 
-export const onlineCount = () => presence.size;
+export const onlineCount = () => playersOn().length;
 
-export const playersOn = (server?: string) =>
-  [...presence.values()].filter((p) => !server || p.server === server).map(publicView);
+export const playersOn = (server?: string) => {
+  const cut = Date.now() - STALE_MS;
+  for (const [key, player] of presence) if (player.lastActive <= cut) leave(key);
+  return [...presence.values()].filter((p) => !server || p.server === server).map(publicView);
+};
 
 /** Removes a character from the map (invisible, deleted, stale) and tells the room. */
 export function leave(key: string) {
@@ -54,9 +57,10 @@ export function leave(key: string) {
   broadcast(p.server, { type: "leave", key });
 }
 
-export function leaveInstall(installId: string) {
+export function leaveInstall(installId: string, characterKey?: string) {
   const normalized = installId.toLowerCase();
-  for (const [key, player] of presence) if (player.installId.toLowerCase() === normalized) leave(key);
+  for (const [key, player] of presence)
+    if (player.installId.toLowerCase() === normalized && (!characterKey || characterKey === key)) leave(key);
 }
 
 /** Applies a stored batch to the live map. History and status-less pings never touch presence. */
@@ -85,9 +89,16 @@ export function applyBatch(b: Batch) {
       status: p.status,
       lfrp: p.lfrp,
       instance: p.instance ?? null,
-      lastActive: p.kind === "heartbeat" ? (prev?.lastActive ?? now) : Math.max(prev?.lastActive ?? 0, p.logTs ?? now),
+      lastActive: Math.min(
+        now,
+        p.kind === "heartbeat" ? (prev?.lastActive ?? p.logTs ?? now) : Math.max(prev?.lastActive ?? 0, p.logTs ?? now),
+      ),
       installId: b.installId,
     };
+    if (cur.lastActive <= now - STALE_MS) {
+      leave(key);
+      continue;
+    }
     presence.set(key, cur);
     broadcast(p.server, { type: "ping", player: publicView(cur) });
   }
@@ -95,8 +106,9 @@ export function applyBatch(b: Batch) {
 
 /** Subscribes a socket to one server's room and sends it the current snapshot. */
 export function join(server: string, socket: WebSocket) {
+  const players = playersOn(server);
   (rooms.get(server) ?? rooms.set(server, new Set()).get(server)!).add(socket);
-  socket.send(JSON.stringify({ type: "snapshot", players: playersOn(server) }));
+  socket.send(JSON.stringify({ type: "snapshot", players }));
   socket.on("close", () => {
     const room = rooms.get(server);
     room?.delete(socket);

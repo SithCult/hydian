@@ -54,7 +54,7 @@ import {
   type PersonNote,
 } from "./core/notes";
 import { PLANETS, planetById, planetForArea } from "./data/planets";
-import { DEFAULT_STATUS, type CharStatus, type Player, type RPStatus } from "./model";
+import { isPublicPlayer, DEFAULT_STATUS, type CharStatus, type Player, type RPStatus } from "./model";
 import { selectMe, selectPlayersOn } from "./selectors";
 import { DEMO, demoState } from "./core/demo";
 
@@ -96,12 +96,18 @@ export interface AppState {
   planet: string; // planet slug
   view: View;
   followMe: boolean;
-  showSeen: boolean; // show players sighted in my own log (local only)
   showPhases: boolean; // show story-phase floors on maps
   heat: boolean; // RP heat layer on the map (aggregated server data)
   serverUrl: string; // the official Hydian backend
   share: boolean; // send my own character's pings
-  uplink: { status: string; queued: number; sent: number; lastError: string; installId: string };
+  uplink: {
+    status: string;
+    queued: number;
+    sent: number;
+    lastError: string;
+    installId: string;
+    removedCharacters: string[];
+  };
   overlay: OverlaySettings; // in-game overlay window
   friends: Record<string, { name: string; server: string; since: number; fromGame?: boolean; via?: string }>; // my friend list (local; only the edge goes to the server); via = the own character whose in-game list has them
   journalFocus: string | null; // an entry id the journal opens on next (an entry started from a profile)
@@ -116,8 +122,9 @@ export interface AppState {
   backfillOn: boolean; // upload the movement history from every log on disk (shared characters only)
   backfill: BackfillState;
   livePlayers: Record<string, Player>; // registered players from the backend, by key
-  registry: Record<string, { at: number; players: Player[]; error: string | null }>; // per game server: everyone who ever shared here
+  registry: Record<string, { at: number; players: Player[]; error: string | null }>; // current public presence per game server
   activeKey: string | null; // `${server}:${id}` of my active character
+  characterActions: Record<string, "removing" | "sharing">;
   charStatus: Record<string, CharStatus>; // per character key; missing = invisible (opt-in sharing)
   modal: Modal;
   hoverKey: string | null;
@@ -135,7 +142,6 @@ export interface AppState {
   selectPlanet(slug: string): void;
   setView(v: View): void;
   setFollowMe(v: boolean): void;
-  setShowSeen(v: boolean): void;
   setShowPhases(v: boolean): void;
   setHeat(v: boolean): void;
   acknowledgeNotice(): void;
@@ -165,7 +171,8 @@ export interface AppState {
   removeEntry(id: string): Promise<void>;
   setStartMinimized(v: boolean): void;
   setActive(key: string | null): void;
-  setStatus(s: RPStatus): void;
+  setStatus(s: RPStatus): Promise<void>;
+  removeCharacter(key: string): Promise<void>;
   setLfrp(v: boolean): void;
   setInstance(v: number | null): void;
   openModal(m: Modal): void;
@@ -198,10 +205,13 @@ const LS = {
 };
 
 let tail: Tail | null = null;
+let linkOperation = 0;
 export const DEFAULT_SERVER_URL = (import.meta.env.VITE_SERVER_URL as string | undefined) ?? "https://api.hydian.org";
 let uplink: Uplink | null = null;
 let backfill: Backfill | null = null;
 let erasingData = false;
+let presenceRevision = 0;
+const registryRequests = new Map<string, number>();
 let overlayHost: OverlayHost | null = null;
 let gameNames: { server: string; name: string; owner: string }[] = []; // names on my in-game friends lists, per server, and whose list
 /** Push the planet-local view to the overlay whenever it could have changed (cheap: it diffs by content). */
@@ -243,8 +253,20 @@ function pushUplinkState(set: (p: Partial<AppState>) => void) {
       sent: uplink.sent,
       lastError: uplink.lastError,
       installId: uplink.installId,
+      removedCharacters: uplink.removedCharacters,
     },
   });
+}
+function withoutPublicCharacter(s: AppState, key: string) {
+  const livePlayers = { ...s.livePlayers };
+  delete livePlayers[key];
+  const registry = Object.fromEntries(
+    Object.entries(s.registry).map(([server, entry]) => [
+      server,
+      { ...entry, players: entry.players.filter((p) => p.key !== key) },
+    ]),
+  );
+  return { livePlayers, registry };
 }
 let booted = false;
 let primedOnce = false; // first follow-me jump after catch-up
@@ -268,13 +290,12 @@ export const useApp = create<AppState>((set, get) => ({
   })(),
   view: "map",
   followMe: true,
-  showSeen: LS.get("showSeen", true),
   showPhases: LS.get("showPhases", false),
   heat: LS.get("heat", false),
   registry: {},
   serverUrl: DEFAULT_SERVER_URL,
   share: LS.get("share", true),
-  uplink: { status: "off", queued: 0, sent: 0, lastError: "", installId: "" },
+  uplink: { status: "off", queued: 0, sent: 0, lastError: "", installId: "", removedCharacters: [] },
   overlay: loadOverlaySettings(),
   friends: LS.get("friends", LS.get("follows", {})), // "follows" was the old name of the same list
   unfriended: LS.get("unfriended", {}),
@@ -290,6 +311,7 @@ export const useApp = create<AppState>((set, get) => ({
   backfill: { running: false, total: 0, done: 0, skipped: 0, pings: 0, sightings: 0, file: "", error: "" },
   livePlayers: {},
   activeKey: LS.get("activeKey", null),
+  characterActions: {},
   charStatus: LS.get("charStatus", {}),
   modal: null,
   hoverKey: null,
@@ -336,14 +358,30 @@ export const useApp = create<AppState>((set, get) => ({
       );
     };
     uplink.onLive = (msg) => {
+      presenceRevision++;
       const before = get().livePlayers,
         live = { ...before };
       if (msg.type === "snapshot") {
         for (const k of Object.keys(live)) delete live[k];
-        for (const p of msg.players) live[p.key] = livePlayerToPlayer(p);
-      } else if (msg.type === "ping") live[msg.player.key] = livePlayerToPlayer(msg.player);
-      else if (msg.type === "leave") delete live[msg.key];
-      set({ livePlayers: live });
+        for (const p of msg.players) {
+          const player = livePlayerToPlayer(p);
+          if (isPublicPlayer(player)) live[p.key] = player;
+        }
+      } else if (msg.type === "ping") {
+        const player = livePlayerToPlayer(msg.player);
+        if (isPublicPlayer(player)) live[msg.player.key] = player;
+        else delete live[msg.player.key];
+      } else if (msg.type === "leave") delete live[msg.key];
+      const registry = { ...get().registry };
+      if (msg.type === "leave") {
+        for (const [server, entry] of Object.entries(registry))
+          registry[server] = { ...entry, players: entry.players.filter((p) => p.key !== msg.key) };
+      } else if (msg.type === "snapshot") {
+        // This snapshot is authoritative for the subscribed server, including disappearances.
+        const server = get().server;
+        registry[server] = { at: Date.now(), players: Object.values(live), error: null };
+      }
+      set({ livePlayers: live, registry });
       // friends: tell me when they show up or start looking for RP
       const friends = get().friends;
       for (const [k, p] of Object.entries(live)) {
@@ -389,11 +427,14 @@ export const useApp = create<AppState>((set, get) => ({
       }
     }, 30_000);
     if (DEMO) return;
+    const operation = ++linkOperation;
     try {
       const custom = { ...get().pathsCustom };
       const detected = await detectPaths();
+      if (operation !== linkOperation) return;
       if (custom.logsDir) {
         const r = await resolveLogsDir(custom.logsDir);
+        if (operation !== linkOperation) return;
         if (r.note) get().toast(r.note, "warn");
         if (r.dir === detected.logsDir) delete custom.logsDir;
         else custom.logsDir = r.dir;
@@ -403,35 +444,46 @@ export const useApp = create<AppState>((set, get) => ({
       LS.set("paths", custom);
       await get().rescan();
     } catch (e) {
+      if (operation !== linkOperation) return;
       set({ link: { ...get().link, ...gameLinkFailure(e) } });
     }
   },
 
   async setPaths(p) {
-    if (p.logsDir) {
-      const r = await resolveLogsDir(p.logsDir);
-      if (r.note) get().toast(r.note, "warn");
-      if (r.dir === (await detectPaths()).logsDir) {
-        const { logsDir: _drop, ...rest } = get().pathsCustom;
-        set({ pathsCustom: rest });
-        p = { ...p, logsDir: r.dir };
-      } else p = { ...p, logsDir: r.dir };
+    const operation = ++linkOperation;
+    tail?.stop();
+    tail = null;
+    set({ link: { status: "scanning", file: null, progress: [0, 0], lines: 0 }, live: null });
+    try {
+      const resolved = p.logsDir ? await resolveLogsDir(p.logsDir) : null;
+      if (operation !== linkOperation) return;
+      const existing = get().paths;
+      const detected = !p.logsDir && existing ? existing : await detectPaths();
+      if (operation !== linkOperation) return;
+      const pathsCustom = { ...get().pathsCustom, ...p };
+      if (resolved) {
+        if (resolved.note) get().toast(resolved.note, "warn");
+        if (resolved.dir === detected.logsDir) delete pathsCustom.logsDir;
+        else pathsCustom.logsDir = resolved.dir;
+      }
+      set({ pathsCustom, paths: { ...detected, ...pathsCustom } });
+      LS.set("paths", pathsCustom);
+      startBackfill(get);
+      await get().rescan();
+    } catch (e) {
+      if (operation !== linkOperation) return;
+      set({ link: { ...get().link, ...gameLinkFailure(e) } });
     }
-    const pathsCustom = { ...get().pathsCustom, ...p };
-    set({ pathsCustom, paths: { ...(get().paths ?? (await detectPaths())), ...p } });
-    LS.set("paths", pathsCustom);
-    startBackfill(get);
-    await get().rescan();
   },
   async resetPaths() {
-    set({ pathsCustom: {}, paths: await detectPaths() });
+    set({ pathsCustom: {} });
     LS.set("paths", {});
     await get().rescan();
   },
 
   async rescan() {
-    let { paths } = get();
-    if (!paths) return;
+    const operation = ++linkOperation;
+    let paths: Paths | null = null;
     tail?.stop();
     tail = null;
     set({ link: { status: "scanning", file: null, progress: [0, 0], lines: 0 }, live: null });
@@ -440,20 +492,27 @@ export const useApp = create<AppState>((set, get) => ({
       hist: History = { characters: get().myChars, encounters: get().encounters };
     try {
       const custom = get().pathsCustom;
-      if (!custom.logsDir || !custom.settingsDir) {
-        paths = { ...(await detectPaths()), ...custom };
-        set({ paths });
-      }
+      paths =
+        custom.logsDir && custom.settingsDir
+          ? { ...custom, logsDir: custom.logsDir, settingsDir: custom.settingsDir }
+          : { ...(await detectPaths()), ...custom };
+      if (operation !== linkOperation) return;
+      set({ paths });
       const [rosterResult, historyResult] = await Promise.allSettled([
         roster(paths.settingsDir),
-        scanHistory(paths.logsDir, {}, (d, t) => set({ link: { ...get().link, progress: [d, t] } })),
+        scanHistory(paths.logsDir, {}, (d, t) => {
+          if (operation === linkOperation) set({ link: { ...get().link, progress: [d, t] } });
+        }),
       ]);
+      if (operation !== linkOperation) return;
       if (rosterResult.status === "fulfilled") ros = rosterResult.value;
       if (historyResult.status === "rejected") throw historyResult.reason;
       hist = historyResult.value;
     } catch (e) {
+      if (operation !== linkOperation) return;
       set({ link: { ...get().link, ...gameLinkFailure(e) } });
     }
+    if (!paths) return;
     set({
       rosterList: ros,
       myChars: hist.characters,
@@ -473,11 +532,16 @@ export const useApp = create<AppState>((set, get) => ({
       set({ activeKey: `${c.server}:${c.id}` });
     }
     tail = new Tail(paths.logsDir, {
-      onFile: (name) =>
-        set({ link: { ...get().link, status: "live", file: name, error: undefined, issue: undefined } }),
-      onNoLog: () =>
-        set({ live: null, link: { ...get().link, status: "nolog", file: null, error: undefined, issue: undefined } }),
+      onFile: (name) => {
+        if (operation !== linkOperation) return;
+        set({ link: { ...get().link, status: "live", file: name, error: undefined, issue: undefined } });
+      },
+      onNoLog: () => {
+        if (operation !== linkOperation) return;
+        set({ live: null, link: { ...get().link, status: "nolog", file: null, error: undefined, issue: undefined } });
+      },
       onOwner: (s, raw) => {
+        if (operation !== linkOperation) return;
         const key = `${s.server ?? get().server}:${s.ownerId}`;
         set({ activeKey: key, live: { ...s } });
         LS.set("activeKey", key);
@@ -492,6 +556,7 @@ export const useApp = create<AppState>((set, get) => ({
         if (s.server && get().followMe) get().selectServer(s.server);
       },
       onArea: (area, s, raw) => {
+        if (operation !== linkOperation) return;
         set({ live: { ...s } });
         // a zone change invalidates a hand-set instance number
         if (tail?.primed && s.server && s.ownerId) {
@@ -520,6 +585,7 @@ export const useApp = create<AppState>((set, get) => ({
         }
       },
       onPos: (pos, s, raw) => {
+        if (operation !== linkOperation) return;
         if (!tail?.primed || !uplink) return;
         const st = liveStatus(get);
         if (st.status === "invisible") return;
@@ -531,16 +597,13 @@ export const useApp = create<AppState>((set, get) => ({
         }
       },
       onSighting: (sg, isNew, s, raw) => {
-        if (tail?.primed && isNew && s.server) {
-          const key = `${s.server}:${sg.id}`,
-            f = get().friends[key];
-          if (f) get().toast(`${f.name} is nearby: ${s.area?.name ?? "same area"}`, "ok");
-        }
+        if (operation !== linkOperation) return;
         if (!tail?.primed || !uplink || !get().share || liveStatus(get).status === "invisible") return;
         const o = sightingFromSession(sg, s, raw);
         if (o && isNew) uplink.pushSighting(o);
       },
       onTick: (s) => {
+        if (operation !== linkOperation) return;
         set({ live: { ...s }, liveAt: Date.now(), link: { ...get().link, lines: s.lines } });
         if (tail?.primed && get().followMe && s.area) {
           const p = planetForArea(s.area);
@@ -550,7 +613,10 @@ export const useApp = create<AppState>((set, get) => ({
           }
         }
       },
-      onError: (e) => set({ live: null, link: { ...get().link, ...gameLinkFailure(e) } }),
+      onError: (e) => {
+        if (operation !== linkOperation) return;
+        set({ live: null, link: { ...get().link, ...gameLinkFailure(e) } });
+      },
     });
     tail.start();
   },
@@ -570,10 +636,6 @@ export const useApp = create<AppState>((set, get) => ({
   },
   setFollowMe(followMe) {
     set({ followMe });
-  },
-  setShowSeen(showSeen) {
-    set({ showSeen });
-    LS.set("showSeen", showSeen);
   },
   setShowPhases(showPhases) {
     setShowPhases(showPhases);
@@ -617,6 +679,7 @@ export const useApp = create<AppState>((set, get) => ({
     if (!uplink) throw new Error("not connected");
     if (erasingData) throw new Error("deletion already in progress");
     erasingData = true;
+    presenceRevision++;
     const charStatus: Record<string, CharStatus> = {};
     set({ share: false, charStatus, livePlayers: {}, registry: {} });
     LS.set("share", false);
@@ -637,13 +700,26 @@ export const useApp = create<AppState>((set, get) => ({
     const cur = get().registry[server];
     if (!force && cur && Date.now() - cur.at < 60_000) return;
     if (!get().serverUrl) return;
+    const revision = presenceRevision;
+    const request = (registryRequests.get(server) ?? 0) + 1;
+    registryRequests.set(server, request);
     try {
       const list = await fetchRegistry(get().serverUrl, server);
+      // A slower response must not undo a newer refresh, live leave or privacy choice.
+      if (revision !== presenceRevision || registryRequests.get(server) !== request) return;
       set({
-        registry: { ...get().registry, [server]: { at: Date.now(), players: list.map(registryToPlayer), error: null } },
+        registry: {
+          ...get().registry,
+          [server]: {
+            at: Date.now(),
+            players: list.map(registryToPlayer).filter((p) => isPublicPlayer(p)),
+            error: null,
+          },
+        },
       });
       get().syncGameFriends();
     } catch (e) {
+      if (revision !== presenceRevision || registryRequests.get(server) !== request) return;
       set({
         registry: {
           ...get().registry,
@@ -656,28 +732,66 @@ export const useApp = create<AppState>((set, get) => ({
     set({ activeKey });
     LS.set("activeKey", activeKey);
   },
-  setStatus(status) {
+  async removeCharacter(key) {
+    if (!uplink) throw new Error("Hydian is not connected yet. Please try again.");
+    if (erasingData || get().characterActions[key]) throw new Error("A privacy change is already in progress.");
+    const character = get().myChars.find((c) => `${c.server}:${c.id}` === key);
+    if (!character) throw new Error("Choose one of your characters to remove.");
+    const cur = get().charStatus[key] ?? DEFAULT_STATUS;
+    presenceRevision++;
+    const charStatus = { ...get().charStatus, [key]: { ...cur, status: "invisible" as const, lfrp: false } };
+    set({
+      charStatus,
+      ...withoutPublicCharacter(get(), key),
+      characterActions: { ...get().characterActions, [key]: "removing" },
+    });
+    LS.set("charStatus", charStatus);
+    pushOverlay(get);
+    try {
+      await uplink.deleteCharacter(character.server, character.id);
+      get().toast(`${character.name} was removed from Hydian for this device.`, "ok");
+    } finally {
+      const characterActions = { ...get().characterActions };
+      delete characterActions[key];
+      set({ characterActions });
+      pushUplinkState(set);
+    }
+  },
+  async setStatus(status) {
     if (erasingData) return;
     const key = get().activeKey;
-    if (!key) return;
+    if (!key || get().characterActions[key]) return;
     const cur = get().charStatus[key] ?? DEFAULT_STATUS;
-    if (cur.status === "invisible" && status === "invisible") return;
-    const charStatus = { ...get().charStatus, [key]: { ...cur, status } };
-    set({ charStatus });
-    LS.set("charStatus", charStatus);
-    if (status === "invisible") {
-      const [server, id] = key.split(":");
-      uplink?.discardCharacter(server, id);
+    if (cur.status === status) return;
+    const [server, id] = key.split(":");
+    // Only an explicit choice to share may lift a character's removal block.
+    if (status !== "invisible" && uplink?.removedCharacters.includes(key)) {
+      set({ characterActions: { ...get().characterActions, [key]: "sharing" } });
+      try {
+        await uplink.restoreCharacter(server, id);
+      } catch {
+        get().toast("Could not resume sharing. Your character is still hidden. Please try again.", "warn");
+        return;
+      } finally {
+        const characterActions = { ...get().characterActions };
+        delete characterActions[key];
+        set({ characterActions });
+      }
+      if (erasingData) return;
     }
+    presenceRevision++;
+    const charStatus = { ...get().charStatus, [key]: { ...cur, status } };
+    set({ charStatus, ...(status === "invisible" ? withoutPublicCharacter(get(), key) : {}) });
+    LS.set("charStatus", charStatus);
+    if (status === "invisible") uplink?.discardCharacter(server, id);
     if (cur.status === "invisible" && status !== "invisible") {
       if (!get().share) get().setShare(true);
-      const [srv, id] = key.split(":");
-      backfill?.release(srv, id);
+      backfill?.release(server, id);
       startBackfill(get);
     }
     const live = get().live;
     const character = get().myChars.find((c) => `${c.server}:${c.id}` === key);
-    const s =
+    const session =
       live?.ownerId && `${live.server}:${live.ownerId}` === key
         ? live
         : status === "invisible" && character
@@ -692,13 +806,22 @@ export const useApp = create<AppState>((set, get) => ({
               pos: character.pos,
             }
           : null;
-    if (s && uplink) {
-      const p = pingFromSession("status", s, status, charStatus[key].lfrp, undefined, charStatus[key].instance ?? null);
+    if (session && uplink) {
+      const p = pingFromSession(
+        "status",
+        session,
+        status,
+        charStatus[key].lfrp,
+        undefined,
+        charStatus[key].instance ?? null,
+      );
       if (p) {
         uplink.push(p);
         pushUplinkState(set);
+        if (status === "invisible") await uplink.flush();
       }
     }
+    pushOverlay(get);
   },
   setLfrp(lfrp) {
     const key = get().activeKey;

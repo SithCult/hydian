@@ -5,7 +5,12 @@ export const SERVER_RE = /^he\d{4}$/; // game server id, e.g. he4000
 export const ID_RE = /^\d{1,20}$/; // character / area id as the log prints it
 
 const server = z.string().regex(SERVER_RE);
-const id = z.string().regex(ID_RE);
+const id = z
+  .string()
+  .regex(ID_RE)
+  .refine((value) => ID_RE.test(value) && BigInt(value) <= 9223372036854775807n)
+  .transform((value) => BigInt(value).toString());
+export const CharacterIdentity = z.object({ server, characterId: id });
 const num = z.number().nullable().optional();
 
 export const Ping = z.object({

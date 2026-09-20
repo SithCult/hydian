@@ -1,72 +1,18 @@
 // Settings: one tab per concern, Discord-style.
-import { useState } from "react";
-import { isTauri, pickFolder } from "../../core/fs";
+import { isTauri } from "../../core/fs";
 import { useApp, type SettingsTab } from "../../store";
 import { Private } from "../bits";
-import { Logo } from "../Logo";
+import { AboutLogo } from "../AboutLogo";
+import { InstallationId } from "../InstallationId";
 import { IS_MAC, MOD, modShift } from "../../core/platform";
 import { PrivacyPolicyLink } from "../PrivacyPolicyLink";
+import { WebsitePageLink } from "../WebsitePageLink";
+import { GameLinkPanel } from "../GameLink";
 import { UpdateControls } from "../UpdateControls";
 import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
 import { Button } from "@/components/ui/button";
 
-function PathRow({
-  value,
-  onPick,
-  title,
-  placeholder,
-}: {
-  value: string;
-  onPick: (v: string) => void;
-  title: string;
-  placeholder?: string;
-}) {
-  const [draft, setDraft] = useState(value);
-  const dirty = draft !== value;
-  return (
-    <span className="v path-row">
-      <input
-        aria-label={title}
-        value={draft}
-        placeholder={placeholder}
-        onChange={(e) => setDraft(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" && dirty) onPick(draft.trim());
-        }}
-        spellCheck={false}
-      />
-      {dirty && (
-        <Button variant="secondary" size="sm" onClick={() => onPick(draft.trim())}>
-          Use
-        </Button>
-      )}
-      {isTauri() && (
-        <Button
-          variant="secondary"
-          size="sm"
-          onClick={async () => {
-            const r = await pickFolder(title, value || undefined);
-            if (r) {
-              setDraft(r);
-              onPick(r);
-            }
-          }}
-        >
-          Browse…
-        </Button>
-      )}
-    </span>
-  );
-}
-
-const LINK_LABEL: Record<string, string> = {
-  idle: "Starting",
-  scanning: "Reading logs",
-  live: "Live",
-  nolog: "No combat log found",
-  error: "Error",
-};
 const UPLINK_LABEL: Record<string, string> = {
   off: "Off",
   idle: "Connected",
@@ -145,7 +91,7 @@ export function SettingsModal({ close }: { close: () => void }) {
       <div className="settings-main">
         <div className="body scroll">
           <h2>{TABS.find((t) => t.id === tab)!.label}</h2>
-          {tab === "game" && <GameTab />}
+          {tab === "game" && <GameLinkPanel diagnostics />}
           {tab === "overlay" && <OverlayTab />}
           {tab === "startup" && <StartupTab />}
           {tab === "map" && <MapTab />}
@@ -159,146 +105,6 @@ export function SettingsModal({ close }: { close: () => void }) {
         </div>
       </div>
     </div>
-  );
-}
-
-function GameTab() {
-  const paths = useApp((s) => s.paths);
-  const link = useApp((s) => s.link);
-  const rescan = useApp((s) => s.rescan);
-  const setPaths = useApp((s) => s.setPaths);
-  const resetPaths = useApp((s) => s.resetPaths);
-  const pathsCustom = useApp((s) => s.pathsCustom);
-  const myChars = useApp((s) => s.myChars);
-  const rosterList = useApp((s) => s.rosterList);
-  const live = useApp((s) => s.live);
-  const scanMs = useApp((s) => s.scanMs);
-  const [adv, setAdv] = useState(Object.keys(pathsCustom).length > 0);
-  const needsLogs = link.status === "nolog";
-  const needsPermission = link.issue === "permission-denied";
-  return (
-    <>
-      <div className="kv">
-        <span className="k">Status</span>
-        <span className="v">
-          <span className={`link-dot ${link.status}`} style={{ display: "inline-block", marginRight: 6 }} />
-          {link.error || LINK_LABEL[link.status] || link.status}
-        </span>
-        <span className="k">Game data</span>
-        <span className="v" style={{ fontFamily: "var(--font)" }}>
-          {Object.keys(pathsCustom).filter((k) => k !== "installDir").length ? "Custom folders" : "Automatic detection"}{" "}
-          <Button variant="ghost" size="sm" style={{ padding: "0 6px", fontSize: 12 }} onClick={() => setAdv(!adv)}>
-            {adv ? "hide" : "advanced…"}
-          </Button>
-        </span>
-        <span className="k">Following</span>
-        <span className="v">{link.file ?? "-"}</span>
-        <span className="k">Parsed</span>
-        <span className="v">
-          {link.lines.toLocaleString()} lines · {myChars.length} {myChars.length === 1 ? "character" : "characters"} in
-          logs · {rosterList.length} in settings · scan {scanMs} ms
-        </span>
-        {live?.area && (
-          <>
-            <span className="k">Live area</span>
-            <span className="v">
-              {live.area.name}
-              {live.area.mode ? ` · ${live.area.mode}` : ""}
-            </span>
-          </>
-        )}
-        {live?.pos && (
-          <>
-            <span className="k">Live position</span>
-            <span className="v">
-              x {live.pos.x.toFixed(1)} · y {live.pos.y.toFixed(1)} · z {live.pos.z.toFixed(1)} · {live.pos.at}
-            </span>
-          </>
-        )}
-      </div>
-      {(needsLogs || needsPermission) && (
-        <section className="game-link-guide" aria-labelledby="game-link-guide-title">
-          <h3 id="game-link-guide-title">
-            {needsPermission ? "Allow access to your game files" : "Enable combat logging"}
-          </h3>
-          {needsPermission ? (
-            <p>
-              Allow Hydian to read the folder containing your combat logs.
-              {IS_MAC && " On your Mac, check System Settings → Privacy & Security → Files and Folders → Hydian."} Then
-              try Rescan logs, or choose a folder you can access below.
-            </p>
-          ) : (
-            <>
-              <p>
-                {link.issue === "missing-folder"
-                  ? "Combat logging may be off, or SWTOR may be saving logs elsewhere."
-                  : "This folder has no combat logs yet. Turn on logging in SWTOR to connect your character."}
-              </p>
-              <ol>
-                <li>
-                  In SWTOR, press Esc and open <b>Preferences → Combat Logging</b>.
-                </li>
-                <li>
-                  Turn on <b>Enable Combat Logging to File</b> and apply the change.
-                </li>
-                <li>
-                  Play your character and enter combat to create a log, then choose <b>Rescan logs</b> below.
-                </li>
-              </ol>
-              {IS_MAC && (
-                <p>If you use CrossOver or Wine, choose the CombatLogs folder inside the bottle where SWTOR runs.</p>
-              )}
-            </>
-          )}
-          <Button
-            variant="secondary"
-            size="xs"
-            aria-expanded={adv}
-            aria-controls="game-folder-settings"
-            onClick={() => setAdv(!adv)}
-          >
-            {adv ? "Hide folder settings" : "Show folder settings"}
-          </Button>
-        </section>
-      )}
-      {adv && (
-        <div id="game-folder-settings" className="box" style={{ marginTop: 10 }}>
-          <p className="empty" style={{ marginBottom: 10 }}>
-            Hydian finds these folders on its own. Change them only if your game keeps them somewhere unusual.
-          </p>
-          <div className="kv">
-            <span className="k">Combat logs</span>
-            <PathRow
-              value={paths?.logsDir ?? ""}
-              onPick={(v) => void setPaths({ logsDir: v })}
-              title="Choose the SWTOR CombatLogs folder"
-            />
-            <span className="k">Settings dir</span>
-            <PathRow
-              value={paths?.settingsDir ?? ""}
-              onPick={(v) => void setPaths({ settingsDir: v })}
-              title="Choose the SWTOR settings folder"
-            />
-          </div>
-        </div>
-      )}
-      <div style={{ marginTop: 10, display: "flex", gap: 8 }}>
-        <Button variant="secondary" size="sm" disabled={link.status === "scanning"} onClick={() => void rescan()}>
-          {link.status === "scanning" ? "Reading logs…" : "Rescan logs"}
-        </Button>
-        {Object.keys(pathsCustom).length > 0 && (
-          <Button variant="ghost" size="sm" onClick={() => void resetPaths()}>
-            Reset folders to default
-          </Button>
-        )}
-      </div>
-      {!needsLogs && !needsPermission && (
-        <p className="note" style={{ marginTop: 12 }}>
-          Hydian reads the combat log (<b>Preferences → Combat Logging → Enable Combat Logging to File</b>) and the
-          settings folder for character names. A position arrives whenever the game logs an event.
-        </p>
-      )}
-    </>
   );
 }
 
@@ -438,25 +244,12 @@ function PrivacyTab() {
   const backfillOn = useApp((s) => s.backfillOn);
   const setBackfill = useApp((s) => s.setBackfill);
   const bf = useApp((s) => s.backfill);
-  const showSeen = useApp((s) => s.showSeen);
-  const setShowSeen = useApp((s) => s.setShowSeen);
   const openModal = useApp((s) => s.openModal);
   return (
     <>
-      <p className="note">
-        <PrivacyPolicyLink />
-      </p>
-      <p className="note">
-        Sharing is per character and starts Invisible: set a character to In Character or Out of Character to put it on
-        the map. Others see a name, a status and a place.{" "}
-        <Button
-          variant="ghost"
-          size="sm"
-          style={{ padding: "0 4px", fontSize: 12 }}
-          onClick={() => openModal({ kind: "notice" })}
-        >
-          Read the full notice
-        </Button>
+      <p className="settings-privacy-intro">
+        Characters start Invisible. In My characters, choose In Character or Out of Character to appear to other players
+        while active. <PrivacyPolicyLink />
       </p>
       <Toggle
         title="Upload log history"
@@ -471,17 +264,11 @@ function PrivacyTab() {
           </span>
         )}
       </Toggle>
-      <Toggle
-        title="Show players seen in my log"
-        hint="Real players your combat log mentions nearby (targeting, grouping), as dashed grey pins marked “Not on Hydian”."
-        on={showSeen}
-        onToggle={() => setShowSeen(!showSeen)}
-      />
       <div className="toggle" style={{ borderBottom: 0 }}>
         <div className="l">
-          <b>Notes and journal stay on this device</b>
+          <b>Notes and journal</b>
           <span>
-            Anything marked <Private /> is stored here and nowhere else.
+            Marked <Private /> and saved only on this device.
           </span>
         </div>
       </div>
@@ -489,8 +276,8 @@ function PrivacyTab() {
         <div className="l">
           <b>Delete what this device sent</b>
           <span>
-            Removes this installation and its friend connections. Uploaded gameplay samples retain time and place with
-            replacement identifiers. This cannot be undone.
+            Removes this device’s shared characters and friend connections. Gameplay samples keep their time and place
+            under replacement identifiers. This cannot be undone.
           </span>
         </div>
         <Button variant="destructive" size="sm" onClick={() => openModal({ kind: "offboard" })}>
@@ -506,7 +293,7 @@ function AboutTab() {
   return (
     <>
       <div className="notice-brand">
-        <Logo size={40} />
+        <AboutLogo />
         <div className="wordmark">
           Hydian<span>Where roleplay is happening in SWTOR</span>
         </div>
@@ -514,9 +301,15 @@ function AboutTab() {
       <div className="kv about-kv">
         <span className="k control-label">Version</span>
         <UpdateControls />
+        <span className="k control-label">Installation ID</span>
+        <InstallationId key={up.installId} value={up.installId} />
         <span className="k control-label">Privacy</span>
         <div>
           <PrivacyPolicyLink />
+        </div>
+        <span className="k control-label">Project</span>
+        <div>
+          <WebsitePageLink page="about" />
         </div>
         <span className="k">Server</span>
         <span className="v">

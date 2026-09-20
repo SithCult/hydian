@@ -68,9 +68,7 @@ export function Overlay() {
         </div>
         {snap?.me?.where && <div className="ov-where">{snap.me.where}</div>}
         {rows.length === 0 ? (
-          <div className="ov-empty">
-            {snap?.seen ? `${snap.seen} nearby, not on Hydian` : "no one on Hydian nearby"}
-          </div>
+          <div className="ov-empty">No one on Hydian nearby</div>
         ) : (
           <ul className="ov-list">
             {rows.map((p) => (
@@ -91,13 +89,7 @@ export function Overlay() {
                 </span>
               </li>
             ))}
-            {more > 0 || snap?.seen ? (
-              <li className="ov-foot">
-                {more > 0 ? `+${more} more` : ""}
-                {more > 0 && snap?.seen ? " · " : ""}
-                {snap?.seen ? `${snap.seen} not on Hydian` : ""}
-              </li>
-            ) : null}
+            {more > 0 && <li className="ov-foot">+{more} more</li>}
           </ul>
         )}
       </div>

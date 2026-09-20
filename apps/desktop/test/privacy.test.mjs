@@ -14,7 +14,7 @@ const bundle = join(output, "client.mjs");
 await build({
   stdin: {
     contents:
-      'export { Uplink } from "./src/core/uplink"; export { Backfill } from "./src/core/backfill"; export { useApp } from "./src/store";',
+      'export { Uplink } from "./src/core/uplink"; export { Backfill } from "./src/core/backfill"; export { useApp } from "./src/store"; export { selectRegistered, selectLive, selectCounts, selectPlayersOn } from "./src/selectors"; export { snapshot as overlaySnapshot } from "./src/core/overlay";',
     resolveDir: desktop,
   },
   bundle: true,
@@ -400,3 +400,316 @@ test("Invisible informs the server for an inactive shared character without uplo
     "opting in an offline character must not fabricate live presence",
   );
 });
+
+test("character removal drains in-flight uploads, persists suppression, and only explicit restore resumes them", async () => {
+  const { Uplink } = await client();
+  const uplink = new Uplink("https://api.example.test", true);
+  const requests = [];
+  const uploading = deferred();
+  globalThis.fetch = (url, init) => {
+    requests.push({ url, ...init });
+    return url.endsWith("/v1/pings") && requests.length === 1 ? uploading.promise : Promise.resolve(response());
+  };
+  uplink.push(ping());
+  const flight = uplink.flush();
+  uplink.push(ping("84"));
+  uplink.pushSighting({ server: "he4000", seenBy: "42", characterId: "99", characterName: "Nearby" });
+  uplink.pushSighting({ server: "he4000", seenBy: "84", characterId: "42", characterName: "Removed" });
+  const removal = uplink.deleteCharacter("he4000", "42");
+  assert.deepEqual(uplink.removedCharacters, ["he4000:42"]);
+  assert.equal(uplink.queued, 1, "the other own character is unaffected");
+  await Promise.resolve();
+  assert.equal(requests.length, 1, "DELETE waits for the existing upload to finish");
+  await uplink.send([ping()], [{ server: "he4000", seenBy: "84", characterId: "42", characterName: "Removed" }], true);
+  assert.equal(requests.length, 1, "history cannot bypass suppression");
+  uploading.resolve(response());
+  await flight;
+  await removal;
+  assert.equal(requests[1].method, "DELETE");
+  assert.ok(requests[1].url.endsWith("/v1/me/characters/he4000/42"));
+  assert.equal(requests[1].headers["x-install-id"], uplink.installId);
+  const restarted = new Uplink(uplink.baseUrl, true);
+  restarted.push(ping());
+  restarted.pushSighting({ server: "he4000", seenBy: "42", characterId: "99", characterName: "Nearby" });
+  assert.equal(restarted.queued, 1);
+  assert.deepEqual(restarted.removedCharacters, ["he4000:42"]);
+  globalThis.fetch = async () => response({}, 503);
+  await assert.rejects(restarted.restoreCharacter("he4000", "42"), /503/);
+  assert.deepEqual(restarted.removedCharacters, ["he4000:42"]);
+  globalThis.fetch = async (url, init) => {
+    assert.ok(url.endsWith("/restore"));
+    assert.equal(init.method, "POST");
+    return response();
+  };
+  await restarted.restoreCharacter("he4000", "42");
+  assert.deepEqual(restarted.removedCharacters, []);
+  restarted.push(ping());
+  assert.equal(restarted.queued, 2);
+});
+
+test("failed character removal stays suppressed for retry, including after restart", async () => {
+  const { Uplink } = await client();
+  const uplink = new Uplink("https://api.example.test", true);
+  uplink.push(ping());
+  globalThis.fetch = async () => response({}, 503);
+  await assert.rejects(uplink.deleteCharacter("he4000", "42"), /503/);
+  assert.equal(uplink.queued, 0);
+  const restarted = new Uplink(uplink.baseUrl, true);
+  restarted.push(ping());
+  assert.equal(restarted.queued, 0);
+  globalThis.fetch = async () => response({ ok: true, characters: 0, pings: 0, sightings: 0 });
+  await restarted.deleteCharacter("he4000", "42");
+  assert.deepEqual(restarted.removedCharacters, ["he4000:42"]);
+});
+
+const ownCharacter = (id = "42") => ({
+  id,
+  name: "Test Pilot",
+  server: "he4000",
+  cls: null,
+  disc: null,
+  area: { id: "137438987989", name: "Nar Shaddaa", mode: null, modeId: null },
+  pos: null,
+  lastEventMs: Date.now(),
+  lastSeen: Date.now(),
+  sessions: 1,
+});
+const player = (id, status = "ic", lastActive = Date.now()) => ({
+  key: `he4000:${id}`,
+  id,
+  name: `Pilot ${id}`,
+  server: "he4000",
+  cls: null,
+  disc: null,
+  planetId: "137438987989",
+  areaName: "Nar Shaddaa",
+  x: 0,
+  y: 0,
+  z: 0,
+  heading: 0,
+  status,
+  hue: 0,
+  lastActive,
+});
+
+test("all public selectors exclude Invisible, expired and own offline snapshots while preserving private characters", async () => {
+  const { useApp, selectRegistered, selectLive, selectCounts, selectPlayersOn } = await client();
+  const now = Date.now();
+  const visible = player("99", "ooc", now);
+  const hidden = player("88", "invisible", now);
+  const offline = player("77", "ic", now - 46 * 60_000);
+  const own = player("42", "ic", now);
+  useApp.setState({
+    activeKey: "he4000:42",
+    myChars: [ownCharacter()],
+    live: null,
+    clock: now,
+    charStatus: { "he4000:42": { status: "invisible", lfrp: false } },
+    livePlayers: Object.fromEntries([visible, hidden, offline, own].map((p) => [p.key, p])),
+    registry: { he4000: { at: now, error: null, players: [visible, hidden, offline, own] } },
+  });
+  const assertPublic = () => {
+    const s = useApp.getState();
+    assert.deepEqual(
+      selectRegistered(s, "he4000").map((p) => p.id),
+      ["99"],
+    );
+    assert.deepEqual(
+      selectLive(s, "he4000").map((p) => p.id),
+      ["99"],
+    );
+    assert.equal(selectCounts(s).byServer.he4000, 1);
+    assert.deepEqual(
+      selectPlayersOn(s, "he4000", "nar-shaddaa").map((p) => p.id),
+      ["99"],
+    );
+    assert.equal(s.myChars.length, 1);
+  };
+  assertPublic();
+  useApp.setState({ charStatus: { "he4000:42": { status: "ic", lfrp: false } } });
+  assertPublic();
+  useApp.setState({
+    live: {
+      ownerId: "42",
+      ownerName: "Test Pilot",
+      server: "he4000",
+      sightings: new Map([
+        ["88", { id: "88", name: "Invisible nearby", x: 0, y: 0, z: 0, atMs: now }],
+        ["66", { id: "66", name: "Never opted in", x: 0, y: 0, z: 0, atMs: now }],
+      ]),
+      area: ownCharacter().area,
+      pos: { x: 0, y: 0, z: 0, heading: 0, atMs: now },
+    },
+    liveAt: now,
+  });
+  assert.deepEqual(
+    selectRegistered(useApp.getState(), "he4000").map((p) => p.id),
+    ["99", "42"],
+  );
+  assert.deepEqual(
+    selectPlayersOn(useApp.getState(), "he4000", "nar-shaddaa").map((p) => p.id),
+    ["99", "42"],
+    "local sightings cannot reveal Invisible or never-opted-in players",
+  );
+});
+
+test("store removal hides immediately, handles failure, and restores only on explicit visible status", async (t) => {
+  const { useApp } = await client();
+  t.mock.method(globalThis, "setTimeout", () => 1);
+  t.mock.method(globalThis, "setInterval", () => 1);
+  let failDelete = true;
+  let restoring = null;
+  let restoreRequests = 0;
+  globalThis.fetch = async (url, init = {}) => {
+    if (url === "/bridge/roots") throw new Error("No game files in this test");
+    if (url.includes("/v1/registry?")) return response({ characters: [] });
+    if (init.method === "DELETE") return response({}, failDelete ? 503 : 200);
+    if (url.endsWith("/restore")) {
+      restoreRequests++;
+      return restoring.promise;
+    }
+    return response();
+  };
+  await useApp.getState().boot();
+  useApp.setState({
+    activeKey: "he4000:42",
+    myChars: [ownCharacter()],
+    charStatus: { "he4000:42": { status: "ic", lfrp: false } },
+    livePlayers: { "he4000:42": player("42") },
+    registry: { he4000: { at: Date.now(), error: null, players: [player("42")] } },
+  });
+  const removing = useApp.getState().removeCharacter("he4000:42");
+  assert.equal(useApp.getState().charStatus["he4000:42"].status, "invisible");
+  assert.deepEqual(useApp.getState().livePlayers, {});
+  assert.deepEqual(useApp.getState().registry.he4000.players, []);
+  await assert.rejects(removing, /503/);
+  assert.deepEqual(useApp.getState().uplink.removedCharacters, ["he4000:42"]);
+  failDelete = false;
+  await useApp.getState().removeCharacter("he4000:42");
+  useApp.getState().setShare(true);
+  await useApp.getState().setStatus("invisible");
+  assert.equal(restoreRequests, 0, "background sharing settings cannot restore a removed character");
+  restoring = deferred();
+  const share = useApp.getState().setStatus("ooc");
+  assert.equal(useApp.getState().characterActions["he4000:42"], "sharing");
+  assert.equal(useApp.getState().charStatus["he4000:42"].status, "invisible");
+  restoring.resolve(response({}, 503));
+  await share;
+  assert.equal(useApp.getState().charStatus["he4000:42"].status, "invisible");
+  restoring = deferred();
+  const retry = useApp.getState().setStatus("ic");
+  restoring.resolve(response());
+  await retry;
+  assert.equal(useApp.getState().charStatus["he4000:42"].status, "ic");
+  assert.deepEqual(useApp.getState().uplink.removedCharacters, []);
+  assert.deepEqual(useApp.getState().characterActions, {});
+  assert.equal(useApp.getState().myChars.length, 1, "local character remains manageable after removal");
+});
+
+test("old sockets cannot overwrite a newer subscription or its connection status", async () => {
+  const { Uplink } = await client();
+  const sockets = [];
+  globalThis.WebSocket = class {
+    readyState = 0;
+    constructor() {
+      sockets.push(this);
+    }
+    close() {}
+  };
+  const uplink = new Uplink("https://api.example.test", true);
+  const events = [];
+  uplink.onLive = (message) => events.push(message);
+  uplink.subscribe("he4000");
+  const old = sockets[0];
+  uplink.subscribe("he3000");
+  old.onmessage({ data: JSON.stringify({ type: "leave", key: "he4000:42" }) });
+  old.onopen();
+  assert.equal(uplink.status, "off");
+  assert.deepEqual(events, []);
+  sockets[1].onmessage({ data: JSON.stringify({ type: "snapshot", players: [] }) });
+  assert.deepEqual(events, [{ type: "snapshot", players: [] }]);
+});
+
+test("a delayed registry response cannot restore a character after a live leave", async (t) => {
+  const { useApp } = await client();
+  t.mock.method(globalThis, "setTimeout", () => 1);
+  t.mock.method(globalThis, "setInterval", () => 1);
+  const sockets = [];
+  globalThis.WebSocket = class {
+    readyState = 0;
+    constructor() {
+      sockets.push(this);
+    }
+    close() {}
+  };
+  const registry = deferred();
+  globalThis.fetch = async (url) => {
+    if (url === "/bridge/roots") throw new Error("No game files in this test");
+    if (url.includes("/v1/registry?")) return registry.promise;
+    throw new Error(`Unexpected request ${url}`);
+  };
+  await useApp.getState().boot();
+  sockets[0].onmessage({ data: JSON.stringify({ type: "leave", key: "he4000:99" }) });
+  const loading = useApp.getState().loadRegistry("he4000", true);
+  sockets[0].onmessage({ data: JSON.stringify({ type: "leave", key: "he4000:99" }) });
+  registry.resolve(
+    response({
+      characters: [
+        { key: "he4000:99", server: "he4000", characterId: "99", name: "Hidden", status: "ic", lastActive: Date.now() },
+      ],
+    }),
+  );
+  await loading;
+  assert.equal(useApp.getState().registry.he4000, undefined);
+  assert.deepEqual(useApp.getState().livePlayers, {});
+});
+
+test("overlay rejects Invisible and observed-only players, including friends", async () => {
+  const { overlaySnapshot } = await client();
+  const visible = player("99");
+  const hidden = player("88", "invisible");
+  const observed = { ...player("66", "ooc"), isSeen: true };
+  const snapshot = overlaySnapshot("he4000", "Nar Shaddaa", null, [visible, hidden, observed], () => null, "live", {
+    "he4000:66": {},
+  });
+  assert.deepEqual(
+    snapshot.players.map((p) => p.key),
+    ["he4000:99"],
+  );
+  assert.equal("seen" in snapshot, false);
+});
+
+for (const oldStatus of [200, 503]) {
+  test(`an older registry ${oldStatus === 200 ? "response" : "failure"} cannot undo a newer refresh`, async () => {
+    const { useApp, selectRegistered } = await client();
+    const old = deferred(),
+      latest = deferred();
+    let calls = 0;
+    globalThis.fetch = () => (++calls === 1 ? old.promise : latest.promise);
+    useApp.setState({ registry: { he4000: { at: 0, error: null, players: [player("99")] } } });
+    const first = useApp.getState().loadRegistry("he4000", true);
+    const second = useApp.getState().loadRegistry("he4000", true);
+    latest.resolve(response({ characters: [] }));
+    await second;
+    old.resolve(
+      response(
+        {
+          characters: [
+            {
+              key: "he4000:99",
+              server: "he4000",
+              characterId: "99",
+              name: "Now hidden",
+              status: "ic",
+              lastActive: Date.now(),
+            },
+          ],
+        },
+        oldStatus,
+      ),
+    );
+    await first;
+    assert.deepEqual(selectRegistered(useApp.getState(), "he4000"), []);
+    assert.equal(useApp.getState().registry.he4000.error, null);
+  });
+}

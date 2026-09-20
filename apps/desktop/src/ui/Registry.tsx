@@ -5,7 +5,7 @@ import { locate } from "../data/maps";
 import { SERVER_NAMES } from "../core/gamelink";
 import { STATUS_META, LFRP_COLOR, hueOf, presenceOf, type Player, type RPStatus } from "../model";
 import { useApp } from "../store";
-import { selectLive, selectMe } from "../selectors";
+import { selectRegistered, selectMe } from "../selectors";
 import { Avatar, Icons, PlaceIcon, ago } from "./bits";
 import { fetchActivity, toLocal, type Activity } from "../core/activity";
 import { Tip } from "./Tip";
@@ -79,7 +79,7 @@ function ActivityPanel({ server }: { server: string }) {
   );
 }
 
-type Tab = "online" | "all" | "mine" | "seen" | "friends";
+type Tab = "online" | "all" | "mine" | "friends";
 type SortKey = "name" | "status" | "active" | "note";
 
 /** One row of the directory. Registered players and my own characters share this shape. */
@@ -99,34 +99,6 @@ interface Row {
   isMe: boolean;
   isSeen: boolean;
   areaName?: string | null;
-}
-
-/** A row for someone we only know from logs or a friend list: name, server and where they were last seen. */
-function ghostRow(
-  key: string,
-  name: string,
-  server: string,
-  areaId: string | null,
-  areaName: string | null | undefined,
-  lastActive: number,
-): Row {
-  return {
-    key,
-    name,
-    server,
-    cls: null,
-    disc: null,
-    status: null,
-    lfrp: false,
-    instance: null,
-    planetId: areaId,
-    where: areaId || areaName ? placeLabel(areaId, areaName) : "-",
-    lastActive,
-    hue: 0,
-    isMe: false,
-    isSeen: true,
-    areaName: areaName ?? null,
-  };
 }
 
 function toRow(p: Player): Row {
@@ -154,9 +126,7 @@ export function Registry() {
   const server = useApp((s) => s.server);
   const me = useApp(selectMe);
   const myChars = useApp((s) => s.myChars);
-  const encounters = useApp((s) => s.encounters);
   const friends = useApp((s) => s.friends);
-  const met = useApp((s) => s.met);
   const notes = useApp((s) => s.notes);
   // imported in-game notes are keyed by name until the person's id is known; read them either way
   const noteOf = (r: Row) => notePreview(notes[r.key] ?? notes[noteKeyByName(r.server, r.name)]);
@@ -172,8 +142,8 @@ export function Registry() {
   const [planet, setPlanet] = useState<string>("");
   const [sort, setSort] = useState<{ k: SortKey; d: 1 | -1 }>({ k: "active", d: -1 });
 
-  // ---- data: live presence (websocket) on top of the server's registry (everyone who ever shared here)
-  const livePlayers = useApp((s) => selectLive(s, server));
+  // Current opted-in presence from the registry and live connection.
+  const publicPlayers = useApp((s) => selectRegistered(s, server));
   const reg = useApp((s) => s.registry[server]);
   const loadRegistry = useApp((s) => s.loadRegistry);
   useEffect(() => {
@@ -181,14 +151,7 @@ export function Registry() {
     const id = setInterval(() => void loadRegistry(server), 60_000);
     return () => clearInterval(id);
   }, [server, loadRegistry]);
-  const registered = useMemo<Row[]>(() => {
-    const byKey = new Map<string, Player>();
-    for (const p of reg?.players ?? []) byKey.set(p.key, p);
-    for (const p of livePlayers) byKey.set(p.key, p); // live beats the snapshot
-    if (me && me.server === server) byKey.set(me.key, me);
-    const list = [...byKey.values()];
-    return list.map(toRow);
-  }, [livePlayers, reg, server, me]);
+  const registered = useMemo(() => publicPlayers.map(toRow), [publicPlayers]);
   const mine = useMemo<Row[]>(
     () =>
       myChars
@@ -217,29 +180,7 @@ export function Registry() {
         }),
     [myChars, server, me],
   );
-  // people on Hydian never appear as sightings: they decide what to show
-  const seen = useMemo<Row[]>(
-    () =>
-      encounters
-        .filter((e) => e.server === server && !registered.some((r) => r.key === `${e.server}:${e.id}`))
-        .map((e) => ghostRow(`${e.server}:${e.id}`, e.name, e.server, e.areaId, e.areaName, e.lastSeen)),
-    [encounters, server, registered],
-  );
-
-  // friends: the live/registry row if we have one, else the local sighting, else just the name
-  const friendRows = useMemo<Row[]>(
-    () =>
-      Object.entries(friends)
-        .filter(([, f]) => f.server === server)
-        .map(([key, f]) => {
-          const r = registered.find((x) => x.key === key) ?? seen.find((x) => x.key === key);
-          if (r) return r;
-          const m = met[key];
-          const area = m?.lastArea ?? null;
-          return ghostRow(key, f.name, f.server, area, area ? m?.areaNames?.[area] : null, m?.last ?? 0);
-        }),
-    [friends, server, registered, seen, met],
-  );
+  const friendRows = registered.filter((r) => !!friends[r.key]);
   const online = registered.filter((r) => presenceOf(r.lastActive) !== "gone");
   const counts = {
     online: online.length,
@@ -248,16 +189,7 @@ export function Registry() {
     all: registered.length,
   };
 
-  let rows: Row[] =
-    tab === "online"
-      ? online
-      : tab === "all"
-        ? registered
-        : tab === "mine"
-          ? mine
-          : tab === "friends"
-            ? friendRows
-            : seen;
+  let rows: Row[] = tab === "mine" ? mine : tab === "friends" ? friendRows : registered;
   if (status) rows = rows.filter((r) => r.status === status);
   if (onlyLfrp) rows = rows.filter((r) => r.lfrp);
   if (planet) rows = rows.filter((r) => r.planetId === planet);
@@ -321,7 +253,6 @@ export function Registry() {
             ["all", `Everyone · ${registered.length}`],
             ["mine", `My characters · ${mine.length}`],
             ["friends", `Friends · ${friendRows.length}`],
-            ["seen", `Not on Hydian · ${seen.length}`],
           ] as [Tab, string][]
         ).map(([t, l]) => (
           <button key={t} className={tab === t ? "on" : ""} onClick={() => setTab(t)}>
@@ -329,7 +260,7 @@ export function Registry() {
           </button>
         ))}
         <span className="grow" />
-        {tab !== "seen" && tab !== "mine" && tab !== "friends" && (
+        {tab !== "mine" && tab !== "friends" && (
           <div className="reg-filters">
             {(Object.keys(STATUS_META) as RPStatus[])
               .filter((k) => k !== "invisible")
@@ -371,24 +302,22 @@ export function Registry() {
 
       {rows.length === 0 ? (
         <div className="reg-empty">
-          {reg?.error && tab !== "mine" && tab !== "seen"
+          {reg?.error && tab !== "mine"
             ? `Could not reach the Hydian server: ${reg.error}`
             : tab === "online"
               ? "No one on Hydian is online on this server right now."
-              : tab === "seen"
-                ? "Your combat log has not mentioned anyone on this server yet."
-                : tab === "mine"
-                  ? "None of your characters has logged in on this server yet."
-                  : tab === "friends"
-                    ? "No friends on this server yet. Open a profile and press Add friend."
-                    : "Nothing matches these filters."}
+              : tab === "mine"
+                ? "None of your characters has logged in on this server yet."
+                : tab === "friends"
+                  ? "None of your friends is sharing on this server right now."
+                  : "Nothing matches these filters."}
         </div>
       ) : (
         <table className="reg-table">
           <thead>
             <tr>
               {th("name", "Character")}
-              {tab !== "seen" && th("status", "Status")}
+              {th("status", "Status")}
               {th("active", "Last seen")}
               {th("note", "Note")}
               <th />
@@ -421,23 +350,16 @@ export function Registry() {
                       </div>
                     </div>
                   </td>
-                  {tab !== "seen" && (
-                    <td className="st">
-                      {r.status ? (
-                        <>
-                          <span
-                            className="chip st"
-                            style={{ "--sc": STATUS_META[r.status].color } as React.CSSProperties}
-                          >
-                            <i className="d" />
-                            {STATUS_META[r.status].label}
-                          </span>
-                        </>
-                      ) : (
-                        <span className="empty">-</span>
-                      )}
-                    </td>
-                  )}
+                  <td className="st">
+                    {r.status ? (
+                      <span className="chip st" style={{ "--sc": STATUS_META[r.status].color } as React.CSSProperties}>
+                        <i className="d" />
+                        {STATUS_META[r.status].label}
+                      </span>
+                    ) : (
+                      <span className="empty">-</span>
+                    )}
+                  </td>
                   <td className="where">
                     <div className="cell">
                       <PlaceIcon areaId={r.planetId} areaName={r.areaName} size={20} />

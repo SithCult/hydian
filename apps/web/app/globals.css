@@ -231,10 +231,6 @@ footer {
   --c: var(--lfrp);
   animation: beacon 1.6s ease-out infinite;
 }
-.d.ghost {
-  background: transparent;
-  border: 1px dashed var(--ink-faint);
-}
 .avatar {
   position: relative;
   width: 34px;
@@ -257,11 +253,6 @@ footer {
   border-radius: 50%;
   background: var(--c, var(--ic));
   border: 2px solid var(--panel-solid);
-}
-.avatar.ghost {
-  background: transparent;
-  border: 1.5px dashed var(--ink-faint);
-  color: var(--ink-muted);
 }
 .container {
   max-width: 1160px;

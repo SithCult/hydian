@@ -20,6 +20,18 @@ export interface Paths {
 
 export type GameLinkIssue = "missing-folder" | "permission-denied" | "unavailable";
 
+export function gameLinkStage(link: {
+  status: string;
+  issue?: GameLinkIssue;
+}): "checking" | "ready" | "missing" | "empty" | "permission" | "unavailable" {
+  if (link.status === "idle" || link.status === "scanning") return "checking";
+  if (link.issue === "permission-denied") return "permission";
+  if (link.issue === "missing-folder") return "missing";
+  if (link.issue || link.status === "error") return "unavailable";
+  if (link.status === "live") return "ready";
+  return link.status === "nolog" ? "empty" : "unavailable";
+}
+
 class GameLinkError extends Error {
   constructor(
     readonly issue: GameLinkIssue,
@@ -93,7 +105,6 @@ export async function resolveLogsDir(picked: string): Promise<{ dir: string; not
     }
   };
   const here = await list(picked);
-  const def = (await detectPaths()).logsDir;
   if (here === null) return { dir: picked, note: null };
   if (here.some((e) => !e.isDir && LOG_RE.test(e.name))) return { dir: picked, note: null };
   if (here.some((e) => e.isDir && /^CombatLogs$/i.test(e.name)))
@@ -101,7 +112,7 @@ export async function resolveLogsDir(picked: string): Promise<{ dir: string; not
   const looksLikeInstall = here.some((e) => /^(Assets|swtor|launcher\.exe|launcher\.settings)$/i.test(e.name));
   if (looksLikeInstall)
     return {
-      dir: def,
+      dir: (await detectPaths()).logsDir,
       note: "That is the game install folder. SWTOR writes combat logs to Documents, so the default folder is used instead.",
     };
   return { dir: picked, note: "No combat_*.txt files found here yet." };

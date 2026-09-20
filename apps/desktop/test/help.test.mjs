@@ -14,7 +14,7 @@ const bundle = join(output, "client.mjs");
 await build({
   stdin: {
     contents:
-      'export { useApp } from "./src/store"; export { handleHelpAction } from "./src/core/help"; export { toast } from "sonner";',
+      'export { useApp } from "./src/store"; export { handleHelpAction } from "./src/core/help"; export { openWebsitePage } from "./src/core/website"; export { toast } from "sonner";',
     resolveDir: desktop,
   },
   bundle: true,
@@ -110,9 +110,30 @@ test("Privacy remains accessible during Welcome without dismissing it", async ()
     commands.push({ command, args });
   };
   await handleHelpAction("help-privacy");
-  assert.deepEqual(commands, [{ command: "open_privacy_policy", args: {} }]);
+  assert.deepEqual(commands, [{ command: "open_website_page", args: { page: "privacy" } }]);
   assert.deepEqual(useApp.getState().modal, { kind: "notice" });
   await handleHelpAction("unrelated-menu-item");
   assert.equal(commands.length, 1);
   assert.deepEqual(useApp.getState().modal, { kind: "notice" });
+});
+
+test("About opens the allowlisted website page through the native handler", async () => {
+  const { openWebsitePage } = await client();
+  const commands = [];
+  window.__TAURI_INTERNALS__.invoke = async (command, args) => {
+    commands.push({ command, args });
+  };
+  await openWebsitePage("about");
+  assert.deepEqual(commands, [{ command: "open_website_page", args: { page: "about" } }]);
+});
+
+test("website opening failures show the matching browser fallback", async () => {
+  const { openWebsitePage, toast } = await client();
+  for (const page of ["privacy", "about"]) {
+    await openWebsitePage(page);
+    assert.equal(
+      toast.getHistory().at(-1).title,
+      `Could not open this page. Visit hydian.org/${page} in your browser.`,
+    );
+  }
 });

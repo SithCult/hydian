@@ -48,14 +48,14 @@ export function DataReadout() {
               </i>
             </div>
             <p className={s.dataNote}>
-              Shared characters appear with their status and in-game location. Your note text and journal stay on your
-              device; friend connections are also stored by the service.
+              Active characters set to In Character or Out of Character appear with their status and in-game location.
+              Your note text and journal stay on your device; friend connections are also stored by the service.
             </p>
           </div>
         </Reveal>
       </div>
       <Reveal className={s.dataFoot} delay={0.2}>
-        Settings › Privacy lets you erase your installation&apos;s links to uploaded records. Read about uploads,
+        Remove a character from its profile, or delete what this device sent in Settings › Privacy. Read about uploads,
         retained gameplay samples and your controls: <a href="/privacy">Privacy</a>.
       </Reveal>
       <Reveal className={s.source} delay={0.25}>
@@ -70,10 +70,15 @@ export function DataReadout() {
           </p>
         </div>
         <div className={s.sourceActions}>
-          <a className="btn primary small" href={SITE.github}>
+          <a className="btn primary small" href={SITE.github} target="_blank" rel="noopener noreferrer">
             <GitHubLogo /> Read the source
           </a>
-          <a className="btn small" href={`${SITE.github}/blob/main/CONTRIBUTING.md`}>
+          <a
+            className="btn small"
+            href={`${SITE.github}/blob/main/CONTRIBUTING.md`}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
             Contribute
           </a>
         </div>
@@ -144,10 +149,17 @@ const FAQ: { q: string; a: React.ReactNode }[] = [
     a: (
       <>
         Hydian reads the combat log the game writes to your Documents folder. It is the same file the parsers read that
-        raiders have used for a decade, <a href="https://ixparse.com/">StarParse</a> and{" "}
-        <a href="https://parsely.io/">Parsely</a> among them, to measure their damage. Reading that file is part of the
-        game. Hydian also reads game settings for characters, friends and notes, and checks process names for its
-        overlay. It is an independent fan project.
+        raiders have used for a decade,{" "}
+        <a href="https://ixparse.com/" target="_blank" rel="noopener noreferrer">
+          StarParse
+        </a>{" "}
+        and{" "}
+        <a href="https://parsely.io/" target="_blank" rel="noopener noreferrer">
+          Parsely
+        </a>{" "}
+        among them, to measure their damage. Reading that file is part of the game. Hydian also reads game settings for
+        characters, friends and notes, and checks whether SWTOR is running for its overlay. It is an independent fan
+        project.
       </>
     ),
   },
@@ -156,8 +168,8 @@ const FAQ: { q: string; a: React.ReactNode }[] = [
     a: "For a character you set to In Character or Out of Character: its name, server, planet, position and status while you play. Class is sent along but never shown. There are no bios and no free text.",
   },
   {
-    q: "What about people who are not on Hydian?",
-    a: "When your log mentions someone nearby, targeting or grouping can add a dashed pin with a name and last-seen time. These observations come from your own log and can include players who are Invisible or use no Hydian app. Sightings also upload while your reporting character is shared; see Privacy for details.",
+    q: "Who appears on the map and in the registry?",
+    a: "Active characters whose players have chosen In Character or Out of Character. Invisible characters stay out of public lists. Your own characters remain available privately in My characters.",
   },
   {
     q: "Does it run on a Mac?",
@@ -218,7 +230,7 @@ export function Download() {
         <p>Free, open source, no account. Windows and macOS.</p>
         <div className={s.cta}>
           <PlatformDownloadLinks />
-          <a className={s.dlSource} href={SITE.github}>
+          <a className={s.dlSource} href={SITE.github} target="_blank" rel="noopener noreferrer">
             Source on GitHub
           </a>
         </div>
@@ -231,8 +243,11 @@ export function Footer() {
   return (
     <footer className={s.footer}>
       <p>
-        Open source under the MIT licence, by <a href={SITE.github}>SithCult</a> ·{" "}
-        <a href="/about">About &amp; contact</a> · <a href="/privacy">Privacy</a>
+        Open source under the MIT licence, by{" "}
+        <a href={SITE.github} target="_blank" rel="noopener noreferrer">
+          SithCult
+        </a>{" "}
+        · <a href="/about">About &amp; contact</a> · <a href="/privacy">Privacy</a>
       </p>
       <p className="fine">{SITE.disclaimer}</p>
     </footer>

@@ -85,6 +85,197 @@ function nextLink(store, predicate) {
   });
 }
 
+test("setup stages distinguish missing and empty folders without claiming logging is enabled", async () => {
+  const { gameLinkStage } = await client();
+  for (const [link, stage] of [
+    [{ status: "idle" }, "checking"],
+    [{ status: "scanning", issue: "permission-denied" }, "checking"],
+    [{ status: "live" }, "ready"],
+    [{ status: "nolog", issue: "missing-folder" }, "missing"],
+    [{ status: "nolog" }, "empty"],
+    [{ status: "error", issue: "permission-denied" }, "permission"],
+    [{ status: "error", issue: "unavailable" }, "unavailable"],
+    [{ status: "error" }, "unavailable"],
+    [{ status: "unknown" }, "unavailable"],
+  ])
+    assert.equal(gameLinkStage(link), stage);
+});
+
+test("retry discovers folders after initial root discovery fails with no saved paths", async () => {
+  const { useApp } = await client();
+  let denied = true;
+  globalThis.fetch = async (url) => {
+    if (url === "/bridge/roots")
+      return denied ? failure("permission-denied") : Response.json({ documents: "/found", localData: "/settings" });
+    if (url.startsWith("/bridge/readDir")) return Response.json([]);
+    throw new Error(`Unexpected request: ${url}`);
+  };
+  await useApp.getState().rescan();
+  assert.equal(useApp.getState().paths, null);
+  assert.equal(useApp.getState().link.issue, "permission-denied");
+  denied = false;
+  await useApp.getState().rescan();
+  await nextLink(useApp, (link) => link.status === "nolog" && !link.issue);
+  assert.equal(useApp.getState().paths.logsDir, "/found/CombatLogs");
+});
+
+test("choosing the default log folder removes its override and keeps automatic detection", async () => {
+  const { useApp } = await client();
+  globalThis.fetch = async (url) => {
+    if (url === "/bridge/roots") return Response.json({ documents: "/synthetic", localData: "/default-settings" });
+    const parsed = new URL(url, "https://preview.test");
+    if (parsed.pathname === "/bridge/readDir")
+      return Response.json(parsed.searchParams.get("path") === paths.settingsDir ? [] : [log]);
+    if (parsed.pathname === "/bridge/stat") return Response.json({ size: 0, mtime: 1 });
+    if (parsed.pathname === "/bridge/read") return new Response(new Uint8Array());
+    throw new Error(`Unexpected request: ${url}`);
+  };
+  useApp.setState({ paths, pathsCustom: paths });
+  await useApp.getState().setPaths({ logsDir: paths.logsDir });
+  assert.deepEqual(useApp.getState().pathsCustom, { settingsDir: paths.settingsDir });
+  assert.deepEqual(JSON.parse(localStorage.getItem("hydian:paths")), { settingsDir: paths.settingsDir });
+  assert.equal(useApp.getState().paths.logsDir, paths.logsDir);
+});
+
+test("a slower folder selection cannot overwrite a newer selection", async () => {
+  const { useApp } = await client();
+  let releaseOlder;
+  const older = new Promise((resolve) => {
+    releaseOlder = resolve;
+  });
+  let olderStarted;
+  const started = new Promise((resolve) => {
+    olderStarted = resolve;
+  });
+  globalThis.fetch = async (url) => {
+    if (url === "/bridge/roots") return Response.json({ documents: "/default", localData: "/settings" });
+    const parsed = new URL(url, "https://preview.test");
+    if (parsed.pathname === "/bridge/readDir") {
+      const path = parsed.searchParams.get("path");
+      if (path === "/older/CombatLogs") {
+        olderStarted();
+        await older;
+      }
+      return Response.json(path.endsWith("CombatLogs") ? [log] : []);
+    }
+    if (parsed.pathname === "/bridge/stat") return Response.json({ size: 0, mtime: 1 });
+    if (parsed.pathname === "/bridge/read") return new Response(new Uint8Array());
+    throw new Error(`Unexpected request: ${url}`);
+  };
+  useApp.setState({ paths, pathsCustom: paths });
+  const first = useApp.getState().setPaths({ logsDir: "/older/CombatLogs" });
+  await started;
+  await useApp.getState().setPaths({ logsDir: "/newer/CombatLogs" });
+  await nextLink(useApp, (link) => link.status === "live");
+  releaseOlder();
+  await first;
+  assert.equal(useApp.getState().paths.logsDir, "/newer/CombatLogs");
+  assert.equal(useApp.getState().pathsCustom.logsDir, "/newer/CombatLogs");
+  assert.equal(JSON.parse(localStorage.getItem("hydian:paths")).logsDir, "/newer/CombatLogs");
+});
+
+test("correcting explicit settings does not depend on unavailable automatic discovery", async () => {
+  const { useApp } = await client();
+  let rootCalls = 0;
+  globalThis.fetch = async (url) => {
+    if (url === "/bridge/roots") {
+      rootCalls++;
+      return failure("unavailable");
+    }
+    if (url.startsWith("/bridge/readDir")) return Response.json([]);
+    throw new Error(`Unexpected request: ${url}`);
+  };
+  useApp.setState({ paths, pathsCustom: paths });
+  await useApp.getState().setPaths({ settingsDir: "/correct/settings" });
+  await nextLink(useApp, (link) => link.status === "nolog");
+  assert.deepEqual(useApp.getState().paths, { ...paths, settingsDir: "/correct/settings" });
+  assert.equal(rootCalls, 0);
+});
+
+test("an older history scan cannot restore its folders, roster or watcher after a new scan", async () => {
+  const { useApp } = await client();
+  let releaseOlder;
+  const older = new Promise((resolve) => {
+    releaseOlder = resolve;
+  });
+  let olderStarted;
+  const started = new Promise((resolve) => {
+    olderStarted = resolve;
+  });
+  let watchers = 0;
+  window.setInterval = (callback) => {
+    poll = callback;
+    return ++watchers;
+  };
+  globalThis.fetch = async (url) => {
+    const parsed = new URL(url, "https://preview.test");
+    const path = parsed.searchParams.get("path");
+    if (parsed.pathname === "/bridge/readDir") {
+      if (path === paths.logsDir) {
+        olderStarted();
+        await older;
+      }
+      return Response.json(
+        path === paths.settingsDir ? [{ name: "he4000_Old Pilot_PlayerGUIState.ini", isDir: false }] : [],
+      );
+    }
+    throw new Error(`Unexpected request: ${url}`);
+  };
+  useApp.setState({ paths, pathsCustom: paths });
+  const first = useApp.getState().rescan();
+  await started;
+  const nextPaths = { logsDir: "/new/CombatLogs", settingsDir: "/new/settings" };
+  useApp.setState({ pathsCustom: nextPaths });
+  await useApp.getState().rescan();
+  await nextLink(useApp, (link) => link.status === "nolog");
+  releaseOlder();
+  await first;
+  assert.deepEqual(useApp.getState().paths, nextPaths);
+  assert.deepEqual(useApp.getState().rosterList, []);
+  assert.equal(useApp.getState().link.status, "nolog");
+  assert.equal(watchers, 1, "only the current scan may start a watcher");
+});
+
+test("a pending read from an old watcher cannot overwrite a new folder's status", async () => {
+  const { useApp } = await client();
+  let releaseRead;
+  const pendingRead = new Promise((resolve) => {
+    releaseRead = resolve;
+  });
+  let readStarted;
+  const started = new Promise((resolve) => {
+    readStarted = resolve;
+  });
+  let stats = 0;
+  globalThis.fetch = async (url) => {
+    const parsed = new URL(url, "https://preview.test");
+    const path = parsed.searchParams.get("path");
+    if (parsed.pathname === "/bridge/readDir") return Response.json(path === paths.logsDir ? [log] : []);
+    if (parsed.pathname === "/bridge/stat") {
+      if (++stats === 3) {
+        readStarted();
+        await pendingRead;
+        return failure("permission-denied");
+      }
+      return Response.json({ size: 0, mtime: 1 });
+    }
+    if (parsed.pathname === "/bridge/read") return new Response(new Uint8Array());
+    throw new Error(`Unexpected request: ${url}`);
+  };
+  useApp.setState({ paths, pathsCustom: paths });
+  await useApp.getState().rescan();
+  await started;
+  const nextPaths = { logsDir: "/new/CombatLogs", settingsDir: "/new/settings" };
+  useApp.setState({ pathsCustom: nextPaths });
+  await useApp.getState().rescan();
+  await nextLink(useApp, (link) => link.status === "nolog");
+  releaseRead();
+  await new Promise(setImmediate);
+  assert.deepEqual(useApp.getState().paths, nextPaths);
+  assert.equal(useApp.getState().link.status, "nolog");
+  assert.equal(useApp.getState().link.issue, undefined);
+});
+
 test("missing folders, denied permissions, wrong paths and unknown failures stay distinct", async () => {
   const { scanHistory, gameLinkFailure } = await client();
   for (const [code, status, issue] of [

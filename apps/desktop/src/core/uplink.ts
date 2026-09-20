@@ -61,6 +61,7 @@ export interface LivePlayer {
 
 const APP_VERSION = "0.1.0";
 const LSQ = "hydian:uplink:queue";
+const LS_REMOVED = "hydian:uplink:removed";
 
 function uuid(): string {
   const k = "hydian:installId";
@@ -91,6 +92,11 @@ export class Uplink {
   private erasing = false;
   private sharingEpoch = 0;
   private erasure: Promise<{ characters: number; pings: number; sightings: number }> | null = null;
+  private removed = new Set<string>();
+  private characterRequests = new Map<string, Promise<void>>();
+  get removedCharacters() {
+    return [...this.removed];
+  }
   status: "off" | "idle" | "sending" | "error" | "live" = "off";
   lastError = "";
   sent = 0;
@@ -110,15 +116,20 @@ export class Uplink {
     public enabled: boolean,
   ) {
     try {
+      this.removed = new Set(JSON.parse(localStorage.getItem(LS_REMOVED) ?? "[]"));
+    } catch {
+      /* ignore */
+    }
+    try {
       const q = JSON.parse(localStorage.getItem(LSQ) ?? "null");
       if (q && enabled) {
-        this.pings = q.pings ?? [];
-        this.sightings = q.sightings ?? [];
+        this.pings = (q.pings ?? []).filter((p: PingOut) => !this.isRemoved(p.server, p.characterId));
+        this.sightings = (q.sightings ?? []).filter((s: SightingOut) => this.canSendSighting(s));
       }
     } catch {
       /* ignore */
     }
-    if (!enabled) this.persist();
+    this.persist();
   }
 
   configure(baseUrl: string, enabled: boolean) {
@@ -144,21 +155,37 @@ export class Uplink {
 
   // ---------------------------------------------------------------- queueing
   push(p: PingOut) {
-    if (!this.enabled) return;
+    if (!this.enabled || this.isRemoved(p.server, p.characterId)) return;
     this.pings.push(p);
     this.persist();
     this.schedule();
   }
   pushSighting(s: SightingOut) {
-    if (!this.enabled) return;
+    if (!this.enabled || !this.canSendSighting(s)) return;
     this.sightings.push(s);
     this.persist();
     this.schedule();
   }
   discardCharacter(server: string, characterId: string) {
     this.pings = this.pings.filter((p) => p.server !== server || p.characterId !== characterId);
-    this.sightings = this.sightings.filter((s) => s.server !== server || s.seenBy !== characterId);
+    this.sightings = this.sightings.filter(
+      (s) => s.server !== server || (s.seenBy !== characterId && s.characterId !== characterId),
+    );
     this.persist();
+  }
+  private isRemoved(server: string, characterId: string) {
+    return this.removed.has(`${server}:${characterId}`);
+  }
+  private canSendSighting(s: SightingOut) {
+    return !this.isRemoved(s.server, s.seenBy) && !this.isRemoved(s.server, s.characterId);
+  }
+  private persistRemoved() {
+    try {
+      localStorage.setItem(LS_REMOVED, JSON.stringify(this.removedCharacters));
+    } catch {
+      /* ignore */
+    }
+    this.onState();
   }
   get queued() {
     return this.pings.length + this.sightings.length;
@@ -230,6 +257,9 @@ export class Uplink {
   /** One direct POST (used by the history backfill); throws on failure so the caller can retry the file. */
   async send(pings: PingOut[], sightings: SightingOut[], historical = false) {
     if (!this.enabled || !this.baseUrl) throw new Error("uplink off");
+    pings = pings.filter((p) => !this.isRemoved(p.server, p.characterId));
+    sightings = sightings.filter((s) => this.canSendSighting(s));
+    if (!pings.length && !sightings.length) return;
     const r = await this.post("/v1/pings", { appVersion: APP_VERSION, historical, pings, sightings });
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
     if (!this.enabled) return;
@@ -264,13 +294,73 @@ export class Uplink {
   }
 
   private post(path: string, body: Record<string, unknown>) {
-    const request = fetch(`${this.baseUrl}${path}`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ installId: this.installId, ...body }),
-    }).finally(() => this.writes.delete(request));
+    return this.write(
+      fetch(`${this.baseUrl}${path}`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ installId: this.installId, ...body }),
+      }),
+    );
+  }
+
+  private write(pending: Promise<Response>) {
+    const request = pending.finally(() => this.writes.delete(request));
     this.writes.add(request);
     return request;
+  }
+
+  /** Suppression survives failure and restart; only an explicit restore can resume uploads. */
+  deleteCharacter(server: string, characterId: string): Promise<void> {
+    if (this.erasing) return Promise.reject(new Error("Data deletion is in progress."));
+    const key = `${server}:${characterId}`;
+    this.removed.add(key);
+    this.discardCharacter(server, characterId);
+    this.persistRemoved();
+    return this.changeCharacter(server, characterId, "DELETE");
+  }
+
+  restoreCharacter(server: string, characterId: string): Promise<void> {
+    return this.changeCharacter(server, characterId, "POST");
+  }
+
+  private changeCharacter(server: string, characterId: string, method: "DELETE" | "POST") {
+    if (this.erasing) return Promise.reject(new Error("Data deletion is in progress."));
+    const key = `${server}:${characterId}`;
+    const previous = this.characterRequests.get(key) ?? Promise.resolve();
+    const installId = this.installId;
+    const baseUrl = this.baseUrl;
+    const operation = previous
+      .catch(() => {})
+      .then(async () => {
+        if (!baseUrl) throw new Error("No server configured.");
+        if (method === "DELETE") {
+          await Promise.allSettled(this.writes);
+          await this.flushing;
+        }
+        const path = `/v1/me/characters/${encodeURIComponent(server)}/${encodeURIComponent(characterId)}`;
+        const response = await this.write(
+          fetch(`${baseUrl}${path}${method === "POST" ? "/restore" : ""}`, {
+            method,
+            headers: { "x-install-id": installId },
+          }),
+        );
+        if (!response.ok) {
+          if (response.status === 410) throw new Error("This device's previous sharing identity was deleted.");
+          throw new Error(`HTTP ${response.status}`);
+        }
+        if (method === "POST") {
+          this.discardCharacter(server, characterId);
+          this.removed.delete(key);
+          this.persistRemoved();
+        }
+      });
+    this.characterRequests.set(key, operation);
+    void operation
+      .finally(() => {
+        if (this.characterRequests.get(key) === operation) this.characterRequests.delete(key);
+      })
+      .catch(() => {});
+    return operation;
   }
 
   /** Stop sharing before waiting for existing writes; a failed deletion can retry the same identity. */
@@ -288,6 +378,7 @@ export class Uplink {
 
   private async erase() {
     if (!this.baseUrl) throw new Error("no server configured");
+    await Promise.allSettled(this.characterRequests.values());
     // Aborting a request cannot undo a write already received by the server.
     await Promise.allSettled(this.writes);
     await this.flushing;
@@ -298,6 +389,8 @@ export class Uplink {
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
     const j = (await r.json()) as { characters: number; pings: number; sightings: number };
     this.currentInstallId = crypto.randomUUID();
+    this.removed.clear();
+    this.persistRemoved();
     this.sent = 0;
     this.lastConflicts = "";
     this.lastError = "";
@@ -320,12 +413,14 @@ export class Uplink {
       const ws = new WebSocket(url);
       this.ws = ws;
       ws.onopen = () => {
+        if (this.ws !== ws) return;
         if (this.status !== "error") {
           this.status = "live";
           this.onState();
         }
       };
       ws.onmessage = (ev) => {
+        if (this.ws !== ws) return;
         try {
           this.onLive(JSON.parse(ev.data));
         } catch {
@@ -421,7 +516,7 @@ export interface RegistryEntry {
   h: number | null;
   lastActive: number;
 }
-/** Everyone who ever shared a character on a game server (offline ones included, last planet only). */
+/** Active players who have opted to share their character on a game server. */
 export async function fetchRegistry(baseUrl: string, server: string): Promise<RegistryEntry[]> {
   const r = await fetch(`${baseUrl.replace(/\/+$/, "")}/v1/registry?server=${encodeURIComponent(server)}`);
   if (!r.ok) throw new Error(`HTTP ${r.status}`);
