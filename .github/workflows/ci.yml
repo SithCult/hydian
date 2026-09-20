@@ -1,111 +1,45 @@
-name: CI
+name: CI secret boundary probe
 
 on:
-  push:
-    branches: [main]
   pull_request:
   workflow_dispatch:
 
 permissions:
   contents: read
 
-concurrency:
-  group: ci-${{ github.ref }}
-  cancel-in-progress: true
-
 jobs:
-  # ---------------------------------------------------------------- web side: types, lint, format, bundles
-  check:
-    name: typecheck · lint · tests · build
-    uses: ./.github/workflows/checks.yml
-
-  # ---------------------------------------------------------------- the app: every platform, every push
-  desktop:
-    name: ${{ matrix.name }}
-    needs: check
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - name: Windows x64
-            os: windows-latest
-            target: x86_64-pc-windows-msvc
-            bundles: nsis
-            ext: exe
-          - name: macOS Apple Silicon
-            os: macos-latest
-            target: aarch64-apple-darwin
-            bundles: dmg
-            ext: dmg
-          - name: macOS Intel
-            os: macos-15-intel
-            target: x86_64-apple-darwin
-            bundles: dmg
-            ext: dmg
-    runs-on: ${{ matrix.os }}
-    env:
-      CARGO_TERM_COLOR: always
+  ordinary-pr:
+    name: Ordinary PR job runs without a production environment
+    runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
-        with:
-          persist-credentials: false
-      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4.3.0
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
-        with:
-          node-version: 24
-          cache: pnpm
-      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
-        with:
-          targets: ${{ matrix.target }}
-          components: rustfmt, clippy
-      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
-        with:
-          workspaces: apps/desktop/src-tauri -> target
-          key: ${{ matrix.target }}
-      - run: pnpm install --frozen-lockfile
+      - run: echo 'Untrusted PR jobs can run without production environments.'
 
-      - name: rustfmt
-        run: cargo fmt --check
-        working-directory: apps/desktop/src-tauri
-      - name: clippy (warnings are errors)
-        run: cargo clippy --locked --target ${{ matrix.target }} -- -D warnings
-        working-directory: apps/desktop/src-tauri
-
-      - name: Native regression tests
-        run: cargo test --locked --target ${{ matrix.target }}
-        working-directory: apps/desktop/src-tauri
-
-      - name: Build the installer
-        # plain installers: updater artifacts (and the signing key) are only needed by the release workflow
-        shell: bash
-        run: >
-          pnpm -F @hydian/desktop tauri build --ci --target ${{ matrix.target }} --bundles ${{ matrix.bundles }}
-          --config '{"bundle":{"createUpdaterArtifacts":false}}'
-        env:
-          APPLE_SIGNING_IDENTITY: "-"
-
-      - name: Collect
-        shell: bash
+  protected-release:
+    name: PR must be denied release environment
+    runs-on: ubuntu-latest
+    environment: release
+    steps:
+      - name: Fail if a protected job is allowed to start
         run: |
-          mkdir -p out
-          find apps/desktop/src-tauri/target/${{ matrix.target }}/release/bundle -type f -name "*.${{ matrix.ext }}" -exec cp {} out/ \;
-          ls -la out
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
-        with:
-          name: hydian-${{ matrix.target }}
-          path: out/*
-          retention-days: 14
-          if-no-files-found: error
+          echo '::error::A PR job was allowed to start in the protected release environment.'
+          exit 1
 
-      - name: Report sizes
-        shell: bash
+  protected-website:
+    name: PR must be denied website environment
+    runs-on: ubuntu-latest
+    environment: website
+    steps:
+      - name: Fail if a protected job is allowed to start
         run: |
-          {
-            echo "### ${{ matrix.name }}"
-            echo
-            echo "| Installer | Size |"
-            echo "|---|---|"
-            for f in out/*; do echo "| $(basename "$f") | $(du -h "$f" | cut -f1) |"; done
-            bin=$(find apps/desktop/src-tauri/target/${{ matrix.target }}/release -maxdepth 1 -type f \( -name hydian -o -name hydian.exe \) | head -1)
-            [ -n "$bin" ] && echo "| binary $(basename "$bin") | $(du -h "$bin" | cut -f1) |"
-          } >> "$GITHUB_STEP_SUMMARY"
+          echo '::error::A PR job was allowed to start in the protected website environment.'
+          exit 1
+
+  protected-downloads:
+    name: PR must be denied downloads environment
+    runs-on: ubuntu-latest
+    environment: downloads
+    steps:
+      - name: Fail if a protected job is allowed to start
+        run: |
+          echo '::error::A PR job was allowed to start in the protected downloads environment.'
+          exit 1
