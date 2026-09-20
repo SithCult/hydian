@@ -1,6 +1,6 @@
 {
   "name": "@hydian/desktop",
-  "version": "0.1.9",
+  "version": "0.1.10",
   "description": "Hydian desktop app: Tauri 2 shell + React client",
   "license": "MIT",
   "private": true,
