@@ -35,21 +35,22 @@ export function App() {
   useEffect(() => {
     if (!isTauri()) return;
     let disposed = false;
-    let unlisten: (() => void) | undefined;
+    const unlisten: (() => void)[] = [];
     void import("@tauri-apps/api/event")
       .then(async ({ listen }) => {
-        const stop = await listen<string>("help:action", ({ payload }) => void handleHelpAction(payload));
-        if (disposed) stop();
-        else unlisten = stop;
+        for (const [event, onEvent] of [
+          ["help:action", (action: string) => void handleHelpAction(action)],
+          ["tray:hide", () => void useApp.getState().setTrayIconVisible(false)],
+        ] as const) {
+          const stop = await listen<string>(event, ({ payload }) => onEvent(payload));
+          if (disposed) stop();
+          else unlisten.push(stop);
+        }
       })
-      .catch(() =>
-        useApp
-          .getState()
-          .toast("Help is unavailable. Use Settings to check updates or read the privacy policy.", "warn"),
-      );
+      .catch(() => useApp.getState().toast("Menu actions are unavailable. Use Settings or restart Hydian.", "warn"));
     return () => {
       disposed = true;
-      unlisten?.();
+      unlisten.forEach((stop) => stop());
     };
   }, []);
   useEffect(() => {

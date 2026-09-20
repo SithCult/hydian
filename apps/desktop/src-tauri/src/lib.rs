@@ -12,9 +12,11 @@ use std::{
     path::{Path, PathBuf},
     time::UNIX_EPOCH,
 };
+#[cfg(not(target_os = "macos"))]
+use tauri::tray::{MouseButton, MouseButtonState, TrayIconEvent};
 use tauri::{
     menu::{Menu, MenuItem, MenuItemKind, PredefinedMenuItem, HELP_SUBMENU_ID},
-    tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
+    tray::TrayIconBuilder,
     Emitter, Manager, WindowEvent,
 };
 
@@ -23,6 +25,29 @@ use tauri::ipc::Response;
 
 #[cfg(target_os = "macos")]
 mod autostart;
+
+const TRAY_ID: &str = "hydian-tray";
+#[cfg(target_os = "macos")]
+type TrayVisibilityItem = tauri::menu::CheckMenuItem<tauri::Wry>;
+
+#[tauri::command]
+fn set_tray_visible(app: tauri::AppHandle, visible: bool) -> Result<(), String> {
+    let tray = app.tray_by_id(TRAY_ID).ok_or("Hydian's menu-bar icon is unavailable")?;
+    #[cfg(target_os = "macos")]
+    let item = app
+        .try_state::<TrayVisibilityItem>()
+        .ok_or("Hydian's menu-bar setting is unavailable")?;
+    #[cfg(target_os = "macos")]
+    let previous = item.is_checked().map_err(|e| e.to_string())?;
+    #[cfg(target_os = "macos")]
+    item.set_checked(visible).map_err(|e| e.to_string())?;
+    if let Err(error) = tray.set_visible(visible) {
+        #[cfg(target_os = "macos")]
+        let _ = item.set_checked(previous);
+        return Err(error.to_string());
+    }
+    Ok(())
+}
 
 #[tauri::command]
 async fn open_privacy_policy() -> Result<(), String> {
@@ -342,7 +367,8 @@ pub fn run() {
             launched_minimized,
             is_game_running,
             autostart_enable,
-            open_privacy_policy
+            open_privacy_policy,
+            set_tray_visible
         ])
         .setup(|app| {
             // The game overlay should not inherit the main window's menu bar.
@@ -356,29 +382,52 @@ pub fn run() {
             }
             // Hydian lives in the tray like a chat client: closing the window hides it, Quit is in the tray menu.
             let open = MenuItem::with_id(app, "open", "Open Hydian", true, None::<&str>)?;
-            let overlay = MenuItem::with_id(app, "overlay", "Toggle overlay", true, None::<&str>)?;
+            let overlay = MenuItem::with_id(app, "overlay", "Show in-game overlay", true, None::<&str>)?;
             let quit = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
-            let menu = Menu::with_items(app, &[&open, &overlay, &quit])?;
-            let mut tray = TrayIconBuilder::new()
+            let menu = Menu::with_items(app, &[&open, &overlay])?;
+            #[cfg(target_os = "macos")]
+            {
+                let item = TrayVisibilityItem::with_id(
+                    app,
+                    "tray-visible",
+                    "Show Hydian in Menu Bar",
+                    true,
+                    true,
+                    None::<&str>,
+                )?;
+                menu.append_items(&[&PredefinedMenuItem::separator(app)?, &item])?;
+                app.manage(item);
+            }
+            menu.append(&quit)?;
+            let mut tray = TrayIconBuilder::with_id(TRAY_ID)
                 .menu(&menu)
-                .show_menu_on_left_click(false)
+                .show_menu_on_left_click(cfg!(target_os = "macos"))
                 .tooltip("Hydian")
                 .on_menu_event(|app, e| match e.id.as_ref() {
                     "open" => show_main(app),
                     "overlay" => {
-                        let _ = app.emit_to("main", "overlay:toggle", ());
+                        let _ = app.emit_to("main", "overlay:show", ());
+                    }
+                    #[cfg(target_os = "macos")]
+                    "tray-visible" => {
+                        // Native checkbox clicks toggle before our persisted setting is applied.
+                        if let Some(item) = app.try_state::<TrayVisibilityItem>() {
+                            let _ = item.set_checked(true);
+                        }
+                        let _ = app.emit_to("main", "tray:hide", ());
                     }
                     "quit" => app.exit(0),
                     _ => {}
                 })
-                .on_tray_icon_event(|tray, e| {
+                .on_tray_icon_event(|_tray, _event| {
+                    #[cfg(not(target_os = "macos"))]
                     if let TrayIconEvent::Click {
                         button: MouseButton::Left,
                         button_state: MouseButtonState::Up,
                         ..
-                    } = e
+                    } = _event
                     {
-                        show_main(tray.app_handle());
+                        show_main(_tray.app_handle());
                     }
                 });
             // macOS menu bar: a monochrome template of the mark, tinted by the system. Elsewhere: the app icon.
@@ -420,6 +469,13 @@ pub fn run() {
                 let _ = w.hide();
             }
         })
-        .run(tauri::generate_context!())
-        .expect("error while running Hydian");
+        .build(tauri::generate_context!())
+        .expect("error while building Hydian")
+        .run(|_app, _event| {
+            #[cfg(target_os = "macos")]
+            if let tauri::RunEvent::Reopen { .. } = _event {
+                // The overlay may be visible even when the main window is hidden.
+                show_main(_app);
+            }
+        });
 }

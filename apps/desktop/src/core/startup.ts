@@ -1,9 +1,12 @@
-// Launch-at-login + tray behaviour. The app is meant to stay open like a chat client: it registers itself
-// to start with the OS (once, on first run; the user can turn it off), starts hidden in the tray when the
-// OS launched it, and closing the window only hides it (Quit lives in the tray menu).
+// Launch at login and background behaviour. Closing the window keeps the game link running.
 import { isTauri } from "./fs";
 
 const LS_INIT = "hydian:autostartInit:v2";
+
+export async function setTrayVisible(visible: boolean): Promise<void> {
+  const { invoke } = await import("@tauri-apps/api/core");
+  await invoke("set_tray_visible", { visible });
+}
 
 export async function autostartEnabled(): Promise<boolean> {
   if (!isTauri()) return false;

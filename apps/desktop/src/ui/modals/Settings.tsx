@@ -103,12 +103,14 @@ const Toggle = ({
   hint,
   on,
   onToggle,
+  disabled,
   children,
 }: {
   title: string;
   hint?: React.ReactNode;
   on: boolean;
   onToggle: () => void;
+  disabled?: boolean;
   children?: React.ReactNode;
 }) => (
   <div className="toggle">
@@ -117,7 +119,7 @@ const Toggle = ({
       {hint && <span>{hint}</span>}
       {children}
     </div>
-    <Switch checked={on} onCheckedChange={onToggle} />
+    <Switch aria-label={title} checked={on} onCheckedChange={onToggle} disabled={disabled} />
   </div>
 );
 
@@ -372,20 +374,36 @@ function StartupTab() {
   const setAutostart = useApp((s) => s.setAutostart);
   const startMinimized = useApp((s) => s.startMinimized);
   const setStartMinimized = useApp((s) => s.setStartMinimized);
+  const trayIconVisible = useApp((s) => s.trayIconVisible);
+  const trayIconChanging = useApp((s) => s.trayIconChanging);
+  const setTrayIconVisible = useApp((s) => s.setTrayIconVisible);
   return (
     <>
       <Toggle
         title="Launch at startup"
-        hint="Start Hydian when you sign in to your computer, so the game link keeps running. Closing the window only hides it. Quit is in the tray menu."
+        hint={`Start Hydian when you sign in. Closing the window keeps the game link running. Quit is in the ${IS_MAC ? "Hydian" : "tray"} menu.`}
         on={autostart}
         onToggle={() => void setAutostart(!autostart)}
       />
       <Toggle
-        title="Start minimized to tray"
-        hint="When launched at startup, stay in the tray instead of opening the window."
+        title={IS_MAC ? "Start in background" : "Start minimized to tray"}
+        hint="When launched at startup, keep the window closed until you need it."
         on={startMinimized}
         onToggle={() => setStartMinimized(!startMinimized)}
       />
+      {IS_MAC && (
+        <Toggle
+          title="Show in menu bar"
+          hint={
+            isTauri()
+              ? "Keep Hydian in the menu bar. You can always reopen it from the Dock."
+              : "Choose whether to show the menu-bar icon in the installed app."
+          }
+          on={trayIconVisible}
+          onToggle={() => void setTrayIconVisible(!trayIconVisible)}
+          disabled={!isTauri() || trayIconChanging}
+        />
+      )}
     </>
   );
 }

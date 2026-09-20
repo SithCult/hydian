@@ -26,7 +26,9 @@ import {
   registryToPlayer,
 } from "./core/uplink";
 import { Backfill, type BackfillState } from "./core/backfill";
-import { applyStartMinimized, autostartEnabled, initAutostart, setAutostart } from "./core/startup";
+import { applyStartMinimized, autostartEnabled, initAutostart, setAutostart, setTrayVisible } from "./core/startup";
+import { isTauri } from "./core/fs";
+import { IS_MAC } from "./core/platform";
 import { OverlayHost, snapshot as overlaySnapshot, type OverlaySettings, loadOverlaySettings } from "./core/overlay";
 import { locate } from "./data/maps";
 import { loadMet, type MetIndex } from "./core/met";
@@ -108,7 +110,9 @@ export interface AppState {
   journal: JournalEntry[]; // RP journal (local only), newest first
   met: MetIndex; // who I have met, from my own logs (local only)
   autostart: boolean; // launch at login (OS-level; mirrored from the plugin)
-  startMinimized: boolean; // when launched at login, stay in the tray
+  startMinimized: boolean; // when launched at login, keep the main window hidden
+  trayIconVisible: boolean;
+  trayIconChanging: boolean;
   backfillOn: boolean; // upload the movement history from every log on disk (shared characters only)
   backfill: BackfillState;
   livePlayers: Record<string, Player>; // registered players from the backend, by key
@@ -145,6 +149,7 @@ export interface AppState {
   setShare(v: boolean): void;
   setBackfill(v: boolean): void;
   setAutostart(v: boolean): Promise<void>;
+  setTrayIconVisible(v: boolean): Promise<void>;
   setOverlay(patch: Partial<OverlaySettings>): void;
   toggleFriend(key: string, name: string, server: string): void;
   /** Friends from the in-game friends list (read from its comments file, never written): added here once resolvable. */
@@ -279,6 +284,8 @@ export const useApp = create<AppState>((set, get) => ({
   met: loadMet(),
   autostart: false,
   startMinimized: LS.get("startMinimized", true),
+  trayIconVisible: true,
+  trayIconChanging: false,
   backfillOn: LS.get("backfillOn", true),
   backfill: { running: false, total: 0, done: 0, skipped: 0, pings: 0, sightings: 0, file: "", error: "" },
   livePlayers: {},
@@ -302,6 +309,7 @@ export const useApp = create<AppState>((set, get) => ({
       set({ autostart: await autostartEnabled() });
     });
     void applyStartMinimized(get().startMinimized);
+    void get().setTrayIconVisible(LS.get<boolean>("trayIconVisible", true) !== false);
     void appVersion().then((version) => set({ version }));
     // updates: first look shortly after start, then every few hours while the app sits in the tray
     setTimeout(() => void get().checkUpdate(), 15_000);
@@ -743,6 +751,19 @@ export const useApp = create<AppState>((set, get) => ({
   setStartMinimized(startMinimized) {
     set({ startMinimized });
     LS.set("startMinimized", startMinimized);
+  },
+  async setTrayIconVisible(trayIconVisible) {
+    if (!IS_MAC || !isTauri() || get().trayIconChanging) return;
+    set({ trayIconChanging: true });
+    try {
+      await setTrayVisible(trayIconVisible);
+      set({ trayIconVisible });
+      LS.set("trayIconVisible", trayIconVisible);
+    } catch {
+      get().toast("Could not change the menu-bar icon. Please try again.", "warn");
+    } finally {
+      set({ trayIconChanging: false });
+    }
   },
   setOverlay(patch) {
     void overlayHost?.set(patch);
