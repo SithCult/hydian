@@ -1,8 +1,8 @@
 # Run Hydian locally
 
 Use Node.js 24, pnpm 11.0.8 (the version in `package.json`), and `pnpm install --frozen-lockfile`.
-With nvm, `nvm install` selects the version in `.nvmrc`. Native builds also need
-[Rust and Tauri's platform prerequisites](https://v2.tauri.app/start/prerequisites/): Xcode Command Line Tools
+With nvm, `nvm install` selects the version in `.nvmrc`. Native builds also need Rust 1.95 or later and
+[Tauri's platform prerequisites](https://v2.tauri.app/start/prerequisites/): Xcode Command Line Tools
 on macOS; the C++ build tools and WebView2 on Windows. Browser previews only need Node and pnpm.
 
 ## Website

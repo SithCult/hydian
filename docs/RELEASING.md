@@ -12,6 +12,11 @@ Prepare a release on a pull-request branch with `node scripts/bump.mjs patch` (o
 4. Sign and verify each platform. Upload to a GitHub **draft** release. Signing jobs run sequentially because the Tauri action merges one updater manifest.
 5. Require all platform jobs to pass and approval in the `downloads` environment. Check the manifest, required assets and updater signatures against the public key in the reviewed configuration before publishing GitHub and the download bucket.
 
+Download publication also updates the website's release metadata and the app's updater manifest. The download
+page reads this metadata when opened; it needs no website rebuild for a new app version. Reload an existing tab
+after publication and allow up to five minutes for cached metadata. The separate `website` approval deploys
+website source changes, not app releases.
+
 A missing credential or failed verification blocks publication. Local and pull-request builds can remain unsigned/ad-hoc. A dependency-only push with an already tagged version skips the release; manual runs reject a version tagged at another commit. Failed runs may leave a tag and draft assets. Fix the configuration and rerun failed jobs in that same run; retries accept a tag only when it still identifies that run's commit. If fixing source code requires another commit, bump the version in a new PR.
 
 Published GitHub releases are immutable. After publication, retry only a failed download-publication job; rebuilding or signing again cannot replace published assets. The download-publication workflow has no independent manual bypass.

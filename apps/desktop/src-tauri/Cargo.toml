@@ -3,6 +3,7 @@ name = "hydian"
 version = "0.1.8"
 description = "Hydian. SWTOR roleplay companion (read-only game link)"
 edition = "2021"
+rust-version = "1.95"
 
 [lib]
 name = "hydian_lib"
@@ -18,7 +19,7 @@ tauri-plugin-autostart = "2"
 tauri-plugin-global-shortcut = "2"
 tauri-plugin-updater = "2"
 tauri-plugin-process = "2"
-sysinfo = { version = "0.33", default-features = false, features = ["system"] }
+sysinfo = { version = "0.39", default-features = false, features = ["system"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 open = "5"

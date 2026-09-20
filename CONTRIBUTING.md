@@ -19,8 +19,10 @@ Three rules shape every change:
 | `apps/desktop/branding`            | The mark, the icon master and the macOS Icon Composer bundle                                                     |
 | `apps/api`                         | Fastify + Postgres backend. `routes/` one file per concern, `schemas.ts` the payloads, `presence.ts` the live map |
 | `apps/web`                         | hydian.org: Next.js (App Router, static export), motion, CSS modules                                            |
-| `apps/tiles`                       | Artwork-serving tools; map images are supplied separately                                                      |
 | `apps/desktop/public/{maps,icons}` | BioWare/EA artwork, git-ignored and not part of the repository; the app loads it from the tiles service        |
+
+Optional artwork-hosting tools live in [`apps/tiles`](apps/tiles/README.md). They require separately supplied
+images and are not needed for local app, API or website development.
 
 ## Running
 

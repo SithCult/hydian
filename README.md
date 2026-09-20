@@ -60,18 +60,18 @@ One monorepo, MIT licensed:
 apps/desktop   Tauri 2 (Rust) + React: the app
 apps/api       Fastify 5 + Postgres (Node 24)
 apps/web       hydian.org (Next.js)
-apps/tiles     artwork-serving tools (map images are supplied separately)
 ```
 
 The map artwork, planet icons and emblems are BioWare/EA assets and are not part of this repository or its licence:
 see [GAME-CONTENT.md](GAME-CONTENT.md). The app loads artwork from `https://tiles.hydian.org/`, configurable with
 `VITE_ASSET_BASE`. `apps/desktop/src/data/maps.json` and `apps/desktop/src/data/planet-icons.json` carry only the
 metadata (names, ids, bounds, file names). Local development uses the hosted artwork without starting a separate
-artwork server. The tools in `apps/tiles` need artwork supplied outside Git; see [their README](apps/tiles/README.md).
+artwork server. Optional artwork-hosting tools are kept in [`apps/tiles`](apps/tiles/README.md); they need images
+supplied outside Git and are not required to run the app, API or website.
 
 ### Running
 
-Use Node.js 24 (see `.nvmrc`) and the pinned pnpm version. The native app also needs Rust and the
+Use Node.js 24 (see `.nvmrc`) and the pinned pnpm version. The native app also needs Rust 1.95 or later and the
 [platform prerequisites](https://v2.tauri.app/start/prerequisites/).
 
 ```bash
