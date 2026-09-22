@@ -936,7 +936,7 @@ export const useApp = create<AppState>((set, get) => ({
   },
   syncGameFriends() {
     if (!gameNames.length) return;
-    const { friends: cur, unfriended, met, livePlayers, registry, server } = get();
+    const { friends: cur, unfriended, met, livePlayers, registry } = get();
     const friends = { ...cur };
     const added: string[] = [];
     for (const g of gameNames) {
@@ -960,8 +960,6 @@ export const useApp = create<AppState>((set, get) => ({
       const [srv, id] = key.split(":");
       if (id && !id.startsWith("@")) void uplink?.friend(srv, id, "add");
     }
-    const here = added.filter((k) => k.startsWith(server + ":")).length;
-    if (here) get().toast(`${here} friend${here === 1 ? "" : "s"} from your in-game list`, "ok");
   },
   startEntryWith(p) {
     const me = selectMe(get());

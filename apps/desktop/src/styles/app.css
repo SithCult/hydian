@@ -3428,3 +3428,55 @@ html.overlay-page #root {
   gap: 8px;
   align-items: center;
 }
+
+/* ---------------------------------------------------------------- window chrome (Windows, Linux)
+   The window is undecorated: these are its caption buttons, at the top right of the app's own top row.
+   The bars underneath carry data-tauri-drag-region, so the window still moves, snaps and maximises on
+   a double click. */
+.win-chrome {
+  position: fixed;
+  top: 0;
+  right: 0;
+  z-index: 60;
+  display: flex;
+  justify-content: flex-end;
+  /* the empty part left of the buttons drags the window, like the bars underneath */
+  width: 248px;
+  height: 34px;
+}
+.win-chrome .wc {
+  width: 46px;
+  height: 100%;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  color: var(--text-muted);
+  transition:
+    background 0.12s,
+    color 0.12s;
+}
+.win-chrome .wc:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-strong);
+}
+.win-chrome .wc:active {
+  background: rgba(255, 255, 255, 0.04);
+}
+.win-chrome .wc.close:hover {
+  background: #e81123;
+  color: #fff;
+}
+.win-chrome .wc.close:active {
+  background: #b60f1c;
+}
+/* leave the corner free: whatever reaches the top right edge starts below the buttons */
+html[data-os="windows"] .members,
+html[data-os="linux"] .members {
+  padding-top: 34px;
+}
+html[data-os="windows"] .app:not(:has(.members:not(.closed))) .topbar,
+html[data-os="linux"] .app:not(:has(.members:not(.closed))) .topbar {
+  padding-right: 150px;
+}

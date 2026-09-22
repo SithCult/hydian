@@ -20,6 +20,7 @@
         "theme": "Dark",
         "backgroundColor": "#0a0c16",
         "label": "main",
+        "visible": false,
         "titleBarStyle": "Overlay",
         "hiddenTitle": true
       },
