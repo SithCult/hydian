@@ -8,7 +8,7 @@ and a journal. Hydian reads the combat log the game writes and needs no account.
 
 Hydian is a free, open-source, non-profit fan project made by players, for players.
 
-[hydian.org](https://hydian.org) · [Download](https://hydian.org/download) ·
+[hydian.org](https://www.hydian.org) · [Download](https://www.hydian.org/download) ·
 [Discussions](https://github.com/SithCult/hydian/discussions)
 
 ## Features
@@ -116,7 +116,7 @@ then choose _Check for logs_ in Hydian.
 
 ### Releases and updates
 
-Releases are cut by CI from `main` (`release.yml`) and land on [hydian.org/download](https://hydian.org/download).
+Releases are cut by CI from `main` (`release.yml`) and land on [hydian.org/download](https://www.hydian.org/download).
 Installed copies check for a new version on start and every six hours, download it in the background and offer a
 restart. You can also check in Settings › About, or on macOS in the Help menu. Updates are signed; the public key is in
 `apps/desktop/src-tauri/tauri.conf.json`. macOS gets native traffic lights, an optional menu-bar icon, autostart and

@@ -6,10 +6,10 @@ Hydian reads the combat log the game writes and the settings folder for characte
 
 ## Pages
 
-- [Home](https://hydian.org/): features, data handling, roadmap, downloads
-- [Download](https://hydian.org/download): installers for Windows and macOS
-- [About](https://hydian.org/about): who makes it, contact addresses
-- [Privacy](https://hydian.org/privacy): what the app reads, sends, keeps and how to delete it
+- [Home](https://www.hydian.org/): features, data handling, roadmap, downloads
+- [Download](https://www.hydian.org/download): installers for Windows and macOS
+- [About](https://www.hydian.org/about): who makes it, contact addresses
+- [Privacy](https://www.hydian.org/privacy): what the app reads, sends, keeps and how to delete it
 
 ## Features
 

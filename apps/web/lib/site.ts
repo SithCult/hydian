@@ -1,6 +1,6 @@
 export const SITE = {
   name: "Hydian",
-  url: "https://hydian.org",
+  url: "https://www.hydian.org",
   tagline: "Where roleplay is happening in SWTOR.",
   description:
     "Free, open-source desktop companion for roleplay in Star Wars: The Old Republic. See who is In Character where, on the in-game maps. No account needed.",

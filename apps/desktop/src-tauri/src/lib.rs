@@ -62,8 +62,8 @@ enum WebsitePage {
 impl WebsitePage {
     fn url(self) -> &'static str {
         match self {
-            Self::Privacy => "https://hydian.org/privacy",
-            Self::About => "https://hydian.org/about",
+            Self::Privacy => "https://www.hydian.org/privacy",
+            Self::About => "https://www.hydian.org/about",
         }
     }
 }
@@ -300,8 +300,8 @@ mod tests {
     #[test]
     fn website_pages_only_accept_known_destinations() {
         for (page, url) in [
-            ("privacy", "https://hydian.org/privacy"),
-            ("about", "https://hydian.org/about"),
+            ("privacy", "https://www.hydian.org/privacy"),
+            ("about", "https://www.hydian.org/about"),
         ] {
             let page: WebsitePage = serde_json::from_value(serde_json::json!(page)).unwrap();
             assert_eq!(page.url(), url);
