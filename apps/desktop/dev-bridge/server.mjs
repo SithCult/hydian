@@ -57,7 +57,8 @@ const json = (res, code, body) => {
 };
 
 const fail = (status, message) => Object.assign(new Error(message), { status });
-const allowedName = (file) => /^(?:combat_.*\.txt|.*\.ini)$/i.test(path.basename(file));
+const allowedName = (file) =>
+  /^(?:combat_.*\.txt|.*(?:PlayerGUIState|LocalSocialSettings)\.ini)$/i.test(path.basename(file));
 
 export function createBridge(roots = defaultRoots()) {
   async function checkedPath(requested, file = false) {
@@ -66,7 +67,7 @@ export function createBridge(roots = defaultRoots()) {
     // Resolve roots too: CrossOver and redirected Documents folders may themselves be symlinks.
     const canonicalRoots = await Promise.all(Object.values(roots).map((root) => fs.realpath(root).catch(() => null)));
     if (!canonicalRoots.some((root) => root && within(resolved, root))) throw fail(403, "outside SWTOR folders");
-    if (file && (!allowedName(requested) || !allowedName(resolved))) throw fail(403, "not a combat log or .ini file");
+    if (file && (!allowedName(requested) || !allowedName(resolved))) throw fail(403, "not a combat log or character settings file");
     if (file && !(await fs.stat(resolved)).isFile()) throw fail(403, "not a regular file");
     return resolved;
   }

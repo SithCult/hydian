@@ -7,8 +7,7 @@ export const SITE = {
   github: "https://github.com/SithCult/hydian",
   releases: "https://github.com/SithCult/hydian/releases/latest",
   downloads: "https://dl.hydian.org", // installers, published by .github/workflows/publish.yml
-  api: process.env.NEXT_PUBLIC_API ?? "https://api-production-2fef.up.railway.app",
-  tiles: process.env.NEXT_PUBLIC_TILES ?? "https://tiles-production-d7fc.up.railway.app/",
+  tiles: process.env.NEXT_PUBLIC_TILES ?? "https://tiles.hydian.org/",
   disclaimer:
     "Hydian is a fan project, not affiliated with Electronic Arts, BioWare, Broadsword or Lucasfilm. Star Wars: The Old Republic and related marks belong to their owners.",
 };

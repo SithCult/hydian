@@ -1,7 +1,8 @@
 // Read-only file access abstraction.
-// The Tauri commands accept combat logs and .ini files, including in manually
-// chosen folders. The local browser bridge also restricts reads to its detected
-// SWTOR roots and only accepts requests from the local preview.
+// The Tauri commands accept combat logs and the per-character settings files
+// (PlayerGUIState, LocalSocialSettings), including in manually chosen folders.
+// The local browser bridge also restricts reads to its detected SWTOR roots and
+// only accepts requests from the local preview.
 import { IS_MAC, SEP } from "./platform";
 
 export interface DirEntry {

@@ -59,8 +59,9 @@ For a remote database, certificate validation is enabled; supply your provider's
 Use a direct PostgreSQL connection or a pooler in session mode. Upload and deletion ordering uses session
 advisory locks, which require the same database session throughout each operation.
 
-Copy `apps/desktop/.env.example` to `apps/desktop/.env` so `VITE_SERVER_URL=http://localhost:8080`, then restart
-`pnpm dev` or `pnpm preview`. Website environment overrides live in `apps/web/.env.example`. Values prefixed
+Copy `apps/desktop/.env.example` to `apps/desktop/.env.development.local` so `VITE_SERVER_URL=http://localhost:8080`,
+then restart `pnpm dev` or `pnpm preview`. Installer builds ignore that file and always use the hosted API, which is
+the only one their content security policy allows. Website environment overrides live in `apps/web/.env.example`. Values prefixed
 with `VITE_` or `NEXT_PUBLIC_` are public client configuration; keep credentials in the API environment.
 
 ## Checks
@@ -81,5 +82,5 @@ cargo clippy --locked --all-targets -- -D warnings
 ```
 
 `pnpm test:bridge` and `pnpm test:desktop` run without PostgreSQL. CI provisions PostgreSQL for the API tests
-and builds Windows x64, macOS Apple Silicon and Intel installers. Building an installer is separate from
+and, when a change touches the app, builds Windows x64, macOS Apple Silicon and Intel installers. Building an installer is separate from
 operating-system signing and clean-machine install/update validation; see `RELEASING.md`.

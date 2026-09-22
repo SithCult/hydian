@@ -4,8 +4,8 @@
 //  * fs_stat      - size + mtime of one file
 //  * fs_read      - a byte range of one file, returned as raw bytes (zero-copy IPC)
 //
-// Reads are restricted to the two file kinds the app understands (combat logs, .ini),
-// so even a wrong folder pick cannot read arbitrary files.
+// Stat and read accept only the game files the app understands: combat logs and the two per-character
+// settings files (PlayerGUIState, LocalSocialSettings). Folder listings return names only.
 use std::{
     ffi::{OsStr, OsString},
     fs::File,
@@ -155,10 +155,14 @@ fn allowed_name(path: &Path) -> Result<(), String> {
         .and_then(|n| n.to_str())
         .ok_or("bad path")?
         .to_ascii_lowercase();
-    if (name.starts_with("combat_") && name.ends_with(".txt")) || name.ends_with(".ini") {
+    let combat_log = name.starts_with("combat_") && name.ends_with(".txt");
+    let settings = name.ends_with("playerguistate.ini") || name.ends_with("localsocialsettings.ini");
+    if combat_log || settings {
         Ok(())
     } else {
-        Err(format!("refusing to read {name}: not a combat log or .ini"))
+        Err(format!(
+            "refusing to read {name}: not a combat log or character settings file"
+        ))
     }
 }
 
@@ -349,16 +353,23 @@ mod tests {
     }
 
     #[test]
-    fn accepts_game_files_but_rejects_other_extensions_and_directories() {
+    fn accepts_game_files_but_rejects_other_files_and_directories() {
         let fixture = Fixture::new();
-        for name in ["combat_test.txt", "PlayerGUIState.ini"] {
+        for name in [
+            "combat_test.txt",
+            "PlayerGUIState.ini",
+            "he4000_Test_PlayerGUIState.ini",
+            "he4000_Test_LocalSocialSettings.ini",
+        ] {
             let path = fixture.0.join(name);
             fs::write(&path, "synthetic fixture").unwrap();
-            assert!(allowed_file(&path).is_ok());
+            assert!(allowed_file(&path).is_ok(), "{name}");
         }
-        let private = fixture.0.join("private.txt");
-        fs::write(&private, "synthetic fixture").unwrap();
-        assert!(allowed_file(&private).is_err());
+        for name in ["private.txt", "desktop.ini", "credentials.ini"] {
+            let path = fixture.0.join(name);
+            fs::write(&path, "synthetic fixture").unwrap();
+            assert!(allowed_file(&path).is_err(), "{name}");
+        }
         let directory = fixture.0.join("combat_directory.txt");
         fs::create_dir(&directory).unwrap();
         assert!(allowed_file(&directory).is_err());
