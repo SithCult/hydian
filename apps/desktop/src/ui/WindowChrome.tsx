@@ -3,19 +3,18 @@
 import { useEffect, useState } from "react";
 import { isTauri } from "../core/fs";
 import { OS } from "../core/platform";
+import { Tip } from "./Tip";
 
-type Win = { minimize(): Promise<void>; toggleMaximize(): Promise<void>; close(): Promise<void> };
+type Win = Awaited<ReturnType<typeof win>>;
 
-async function win(): Promise<
-  Win & { isMaximized(): Promise<boolean>; onResized(cb: () => void): Promise<() => void> }
-> {
+async function win() {
   const { getCurrentWindow } = await import("@tauri-apps/api/window");
   return getCurrentWindow();
 }
 
-const I = ({ d, fill }: { d: string; fill?: boolean }) => (
+const I = ({ d }: { d: string }) => (
   <svg viewBox="0 0 10 10" width="10" height="10" aria-hidden>
-    <path d={d} fill={fill ? "currentColor" : "none"} stroke="currentColor" strokeWidth="1" />
+    <path d={d} fill="none" stroke="currentColor" strokeWidth="1" />
   </svg>
 );
 
@@ -43,23 +42,30 @@ export function WindowChrome() {
   }, [on]);
   if (!on) return null;
 
-  const act = (fn: (w: Win) => Promise<void>) => () => void win().then(fn);
+  const act = (fn: (w: Win) => Promise<unknown>) => () => {
+    void win()
+      .then(fn)
+      .catch(() => {
+        /* nothing to fall back to: the window has no title bar of its own */
+      });
+  };
   return (
     <div className="win-chrome" data-tauri-drag-region>
-      <button className="wc" onClick={act((w) => w.minimize())} aria-label="Minimise" title="Minimise">
-        <I d="M0 5h10" />
-      </button>
-      <button
-        className="wc"
-        onClick={act((w) => w.toggleMaximize())}
-        aria-label={max ? "Restore" : "Maximise"}
-        title={max ? "Restore" : "Maximise"}
-      >
-        {max ? <I d="M0.5 2.5h7v7h-7zM2.5 2.5V0.5h7v7h-2" /> : <I d="M0.5 0.5h9v9h-9z" />}
-      </button>
-      <button className="wc close" onClick={act((w) => w.close())} aria-label="Close" title="Close">
-        <I d="M0.5 0.5l9 9M9.5 0.5l-9 9" />
-      </button>
+      <Tip label="Minimise" side="bottom">
+        <button className="wc" onClick={act((w) => w.minimize())} aria-label="Minimise">
+          <I d="M0 5h10" />
+        </button>
+      </Tip>
+      <Tip label={max ? "Restore" : "Maximise"} side="bottom">
+        <button className="wc" onClick={act((w) => w.toggleMaximize())} aria-label={max ? "Restore" : "Maximise"}>
+          {max ? <I d="M0.5 2.5h7v7h-7zM2.5 2.5V0.5h7v7h-2" /> : <I d="M0.5 0.5h9v9h-9z" />}
+        </button>
+      </Tip>
+      <Tip label="Close to the tray" side="bottom">
+        <button className="wc close" onClick={act((w) => w.close())} aria-label="Close">
+          <I d="M0.5 0.5l9 9M9.5 0.5l-9 9" />
+        </button>
+      </Tip>
     </div>
   );
 }

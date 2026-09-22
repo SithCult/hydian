@@ -543,11 +543,11 @@ pub fn run() {
             if let Some(main) = app.get_webview_window("main") {
                 #[cfg(not(target_os = "macos"))]
                 {
-                    main.set_decorations(false)?;
-                    main.set_shadow(true)?;
+                    let _ = main.set_decorations(false);
+                    let _ = main.set_shadow(true);
                 }
                 if !launched_minimized() {
-                    main.show()?;
+                    let _ = main.show();
                 }
             }
             #[cfg(all(target_os = "macos", not(debug_assertions)))]

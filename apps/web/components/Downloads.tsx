@@ -48,7 +48,7 @@ function Buttons({
   os: DesktopOs;
   rel: Release | null;
   primary: boolean;
-  onStart?: () => void;
+  onStart?: (file: FileKey) => void;
 }) {
   const cls = primary ? "btn primary" : "btn";
   const href = (k: FileKey) => `${SITE.downloads}/${rel ? `v${rel.version}` : "latest"}/${FILES[k]}`;
@@ -61,7 +61,7 @@ function Buttons({
         target="_blank"
         rel="noopener noreferrer"
         download
-        onClick={() => onStart?.()}
+        onClick={() => onStart?.("windows")}
       >
         <WindowsLogo /> Windows installer
         {size("windows")}
@@ -75,7 +75,7 @@ function Buttons({
         target="_blank"
         rel="noopener noreferrer"
         download
-        onClick={() => onStart?.()}
+        onClick={() => onStart?.("macArm")}
       >
         <AppleLogo /> Apple Silicon
         {size("macArm")}
@@ -86,7 +86,7 @@ function Buttons({
         target="_blank"
         rel="noopener noreferrer"
         download
-        onClick={() => onStart?.()}
+        onClick={() => onStart?.("macIntel")}
       >
         <AppleLogo /> Intel{size("macIntel")}
       </a>
@@ -99,7 +99,7 @@ export function Downloads() {
   const [rel, setRel] = useState<Release | null>(null);
   // the file keeps downloading while the next screen explains the first launch
   const router = useRouter();
-  const started = () => setTimeout(() => router.push("/download/started"), 150);
+  const started = (k: FileKey) => setTimeout(() => router.push(`/download/started?f=${k}`), 150);
   useEffect(() => {
     fetch(`${SITE.downloads}/latest/releases.json`)
       .then((r) => (r.ok ? r.json() : null))

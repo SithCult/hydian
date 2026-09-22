@@ -8,6 +8,9 @@ import { FirstRun } from "./FirstRun";
 import s from "./Started.module.css";
 
 const FILES = { windows: "Hydian-Setup.exe", macArm: "Hydian-AppleSilicon.dmg", macIntel: "Hydian-Intel.dmg" };
+/** Which build was taken, so this screen names the file the person now has. ?f= comes from the button. */
+const fileKey = (os: "windows" | "mac", q: string | null): keyof typeof FILES =>
+  os === "windows" ? "windows" : q === "macIntel" ? "macIntel" : "macArm";
 
 const up = (delay: number) => ({
   initial: { opacity: 0, y: 18 },
@@ -18,13 +21,15 @@ const up = (delay: number) => ({
 export function Started() {
   const os = useDesktopOs();
   const [version, setVersion] = useState<string | null>(null);
+  const [key, setKey] = useState<keyof typeof FILES | null>(null);
+  useEffect(() => setKey(fileKey(os, new URLSearchParams(location.search).get("f"))), [os]);
   useEffect(() => {
     fetch(`${SITE.downloads}/latest/releases.json`)
       .then((r) => (r.ok ? r.json() : null))
       .then((r: { version?: string } | null) => r?.version && setVersion(r.version))
       .catch(() => {});
   }, []);
-  const file = os === "windows" ? FILES.windows : FILES.macArm;
+  const file = FILES[key ?? fileKey(os, null)];
   const again = `${SITE.downloads}/latest/${file}`;
 
   return (

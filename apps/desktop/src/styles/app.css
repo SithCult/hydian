@@ -3443,6 +3443,8 @@ html.overlay-page #root {
   /* the empty part left of the buttons drags the window, like the bars underneath */
   width: 248px;
   height: 34px;
+  /* a dialog makes the rest of the app inert; the window still has to be closable */
+  pointer-events: auto;
 }
 .win-chrome .wc {
   width: 46px;
@@ -3472,11 +3474,18 @@ html.overlay-page #root {
   background: #b60f1c;
 }
 /* leave the corner free: whatever reaches the top right edge starts below the buttons */
-html[data-os="windows"] .members,
-html[data-os="linux"] .members {
-  padding-top: 34px;
-}
-html[data-os="windows"] .app:not(:has(.members:not(.closed))) .topbar,
-html[data-os="linux"] .app:not(:has(.members:not(.closed))) .topbar {
+html[data-os="windows"] .topbar,
+html[data-os="linux"] .topbar {
   padding-right: 150px;
+}
+/* wide windows: the panel is a column of its own and reaches the corner, so it carries the buttons instead */
+@media (min-width: 1181px) {
+  html[data-os="windows"] .app:has(.members:not(.closed)) .topbar,
+  html[data-os="linux"] .app:has(.members:not(.closed)) .topbar {
+    padding-right: 20px;
+  }
+  html[data-os="windows"] .members,
+  html[data-os="linux"] .members {
+    padding-top: 34px;
+  }
 }

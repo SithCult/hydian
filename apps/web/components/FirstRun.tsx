@@ -55,7 +55,7 @@ export function FirstRun() {
           <span className={s.n}>1</span>
           <div>
             <b>More info</b>
-            <p>The dialog opens small. That link shows you the file name and who signed it.</p>
+            <p>The dialog opens small. That link shows you which file it is about.</p>
           </div>
           <Dialog />
         </li>
