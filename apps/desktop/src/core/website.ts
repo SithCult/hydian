@@ -1,8 +1,8 @@
 import { useApp } from "../store";
 
 export const WEBSITE_PAGES = {
-  privacy: { url: "https://hydian.org/privacy", label: "Privacy policy" },
-  about: { url: "https://hydian.org/about", label: "About Hydian" },
+  privacy: { url: "https://www.hydian.org/privacy", label: "Privacy policy" },
+  about: { url: "https://www.hydian.org/about", label: "About Hydian" },
 } as const;
 
 export type WebsitePage = keyof typeof WEBSITE_PAGES;

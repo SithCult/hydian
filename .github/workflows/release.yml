@@ -215,7 +215,7 @@ jobs:
           releaseDraft: true
           prerelease: false
           releaseBody: |
-            Download installers and release information at https://hydian.org/download.
+            Download installers and release information at https://www.hydian.org/download.
             Installed copies update themselves.
       - name: Verify macOS signature and notarization
         if: runner.os == 'macOS'

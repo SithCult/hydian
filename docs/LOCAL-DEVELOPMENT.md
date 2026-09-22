@@ -15,7 +15,8 @@ Open <http://localhost:4321>. `pnpm -F @hydian/web build` exports the website to
 host with clean URL support. After building, `pnpm -F @hydian/web start` serves that export on port 4321.
 Stop `pnpm web` first because it uses the same port.
 
-The hosted download metadata currently permits browser requests from `https://hydian.org`, but not localhost.
+The hosted download metadata permits browser requests from `https://www.hydian.org` and `https://hydian.org`, but not
+localhost.
 Local download buttons still work; version and file-size labels are omitted when that request is unavailable.
 
 ## Desktop app
