@@ -13,10 +13,12 @@ use std::{
     path::{Path, PathBuf},
     time::UNIX_EPOCH,
 };
+#[cfg(target_os = "macos")]
+use tauri::menu::{MenuItemKind, PredefinedMenuItem, HELP_SUBMENU_ID};
 #[cfg(not(target_os = "macos"))]
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconEvent};
 use tauri::{
-    menu::{Menu, MenuItem, MenuItemKind, PredefinedMenuItem, HELP_SUBMENU_ID},
+    menu::{Menu, MenuItem},
     tray::TrayIconBuilder,
     Emitter, Manager, WindowEvent,
 };
@@ -483,7 +485,11 @@ fn show_main(app: &tauri::AppHandle) {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    tauri::Builder::default()
+    let builder = tauri::Builder::default();
+    // macOS has one menu bar for the whole app. On Windows a menu strip would be a second bar under the
+    // title bar, and everything in it (version, updates, privacy) is in Settings, so the window has none.
+    #[cfg(target_os = "macos")]
+    let builder = builder
         .menu(|app| {
             let menu = Menu::default(app)?;
             if let Some(MenuItemKind::Submenu(help)) = menu.get(HELP_SUBMENU_ID) {
@@ -510,7 +516,8 @@ pub fn run() {
                 }
                 let _ = app.emit_to("main", "help:action", id);
             }
-        })
+        });
+    builder
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_autostart::init(
@@ -531,10 +538,17 @@ pub fn run() {
             set_tray_visible
         ])
         .setup(|app| {
-            // The game overlay should not inherit the main window's menu bar.
-            #[cfg(not(target_os = "macos"))]
-            if let Some(overlay) = app.get_webview_window("overlay") {
-                overlay.remove_menu()?;
+            // Everywhere but macOS the app draws its own caption buttons (ui/WindowChrome), so the window
+            // has no system title bar. It is created hidden and shown here, after the frame is settled.
+            if let Some(main) = app.get_webview_window("main") {
+                #[cfg(not(target_os = "macos"))]
+                {
+                    let _ = main.set_decorations(false);
+                    let _ = main.set_shadow(true);
+                }
+                if !launched_minimized() {
+                    let _ = main.show();
+                }
             }
             #[cfg(all(target_os = "macos", not(debug_assertions)))]
             if let Err(e) = autostart::migrate(app.handle()) {
@@ -601,11 +615,6 @@ pub fn run() {
                 tray = tray.icon(icon.clone());
             }
             tray.build(app)?;
-            if launched_minimized() {
-                if let Some(w) = app.get_webview_window("main") {
-                    let _ = w.hide();
-                }
-            }
             // game presence, published to both windows as `game` { running }
             let handle = app.handle().clone();
             std::thread::spawn(move || {

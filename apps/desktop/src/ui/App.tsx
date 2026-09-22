@@ -5,6 +5,7 @@ import { Icons, PlanetIcon } from "./bits";
 import { MapView } from "./MapView";
 import { Members } from "./Members";
 import { Modals } from "./Modals";
+import { WindowChrome } from "./WindowChrome";
 import { Registry } from "./Registry";
 import { Journal } from "./Journal";
 import { ServerRail } from "./ServerRail";
@@ -136,6 +137,7 @@ export function App() {
       <Boundary name="dialog">
         <Modals />
       </Boundary>
+      <WindowChrome />
       <Toaster />
     </div>
   );

@@ -1,0 +1,115 @@
+.wrap {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 64px var(--gutter) 96px;
+}
+.head {
+  text-align: center;
+  margin-bottom: 8px;
+}
+.tick {
+  display: grid;
+  place-items: center;
+  width: 64px;
+  height: 64px;
+  margin: 0 auto 20px;
+  border-radius: 50%;
+  color: var(--accent);
+  border: 1px solid var(--line);
+  background: radial-gradient(circle at 50% 0%, var(--accent-soft), transparent 70%);
+  box-shadow: 0 18px 40px -22px var(--accent);
+}
+.head h1 {
+  font-size: clamp(34px, 5vw, 56px);
+  letter-spacing: -0.03em;
+  margin: 10px 0 12px;
+}
+.lead {
+  margin: 0 auto;
+  max-width: 62ch;
+  color: var(--ink-muted);
+  font-size: 16px;
+  line-height: 1.6;
+}
+.lead a {
+  color: var(--accent-2);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.mac {
+  margin-top: 28px;
+  padding: 26px 28px;
+  border-radius: 18px;
+  border: 1px solid var(--line-soft);
+  background: var(--panel);
+}
+.mac h2 {
+  font-size: 24px;
+  margin: 6px 0 10px;
+}
+.mac p {
+  margin: 0;
+  max-width: 62ch;
+  color: var(--ink-muted);
+  line-height: 1.6;
+}
+
+.next {
+  margin-top: 26px;
+  padding: 26px 28px 24px;
+  border-radius: 18px;
+  border: 1px solid var(--line-soft);
+  background: var(--panel);
+}
+.next ol {
+  counter-reset: step;
+  list-style: none;
+  margin: 14px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 14px;
+}
+.next li {
+  counter-increment: step;
+  position: relative;
+  padding-left: 40px;
+  color: var(--ink-muted);
+  font-size: 15.5px;
+  line-height: 1.6;
+}
+.next li::before {
+  content: counter(step);
+  position: absolute;
+  left: 0;
+  top: -1px;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 1px solid var(--line);
+  color: var(--accent);
+  font-family: var(--font-hud);
+  font-size: 12px;
+}
+.next li b {
+  color: #fff;
+  font-weight: 600;
+}
+.nextCta {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 22px;
+}
+
+@media (max-width: 760px) {
+  .wrap {
+    padding-top: 40px;
+  }
+  .mac,
+  .next {
+    padding: 20px;
+  }
+}

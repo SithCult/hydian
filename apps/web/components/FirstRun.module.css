@@ -1,0 +1,213 @@
+.wrap {
+  margin-top: 28px;
+  padding: 30px 30px 26px;
+  border-radius: 20px;
+  border: 1px solid var(--line);
+  background:
+    radial-gradient(ellipse at 15% -30%, var(--accent-soft), transparent 55%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.035), transparent);
+}
+.head h2 {
+  font-size: clamp(24px, 3.4vw, 32px);
+  margin: 6px 0 10px;
+}
+.lead {
+  margin: 0;
+  max-width: 62ch;
+  color: var(--ink-muted);
+  font-size: 16px;
+  line-height: 1.6;
+}
+
+/* the two steps, each with the dialog as it looks at that point */
+.steps {
+  list-style: none;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+  margin: 26px 0 0;
+  padding: 0;
+  counter-reset: none;
+}
+.steps li {
+  display: grid;
+  grid-template-columns: 26px 1fr;
+  gap: 10px 12px;
+  align-items: start;
+  padding: 16px 16px 18px;
+  border-radius: 14px;
+  border: 1px solid var(--line-soft);
+  background: var(--panel);
+}
+.steps li > :global(div) {
+  min-width: 0;
+}
+.n {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 1px solid var(--line);
+  color: var(--accent);
+  font-family: var(--font-hud);
+  font-size: 12px;
+}
+.steps b {
+  font-family: var(--font-display);
+  font-size: 16px;
+  color: #fff;
+}
+.steps p {
+  margin: 4px 0 0;
+  color: var(--ink-muted);
+  font-size: 14px;
+  line-height: 1.55;
+}
+.steps .dlg {
+  grid-column: 1 / -1;
+  margin-top: 14px;
+}
+
+/* the prompt itself: Windows blue, its own type, small enough to read as an illustration */
+.dlg {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 196px;
+  border-radius: 8px;
+  padding: 14px 14px 12px;
+  background: #0b5ea8;
+  color: #fff;
+  font-family:
+    "Segoe UI",
+    system-ui,
+    -apple-system,
+    sans-serif;
+  box-shadow: 0 18px 36px -22px rgba(0, 0, 0, 0.9);
+  overflow: hidden;
+}
+.dlgBar {
+  display: flex;
+  justify-content: flex-end;
+  margin: -6px -6px 6px 0;
+}
+.dlgX {
+  font-size: 11px;
+  opacity: 0.85;
+}
+.dlgTitle {
+  margin: 0 0 8px;
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.dlgBody {
+  margin: 0;
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: rgba(255, 255, 255, 0.92);
+}
+.dlgLink {
+  margin: 8px 0 0;
+  width: max-content;
+  font-size: 11.5px;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.dlgFacts {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 2px 10px;
+  margin: 10px 0 0;
+  font-size: 11.5px;
+}
+.dlgFacts dt {
+  color: rgba(255, 255, 255, 0.75);
+}
+.dlgFacts dd {
+  margin: 0;
+}
+.dlgButtons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: auto;
+  padding-top: 14px;
+}
+.dlgBtn {
+  padding: 5px 12px;
+  font-size: 11.5px;
+  color: #1a1a1a;
+  background: #e6e6e6;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+}
+/* what to click, lit the way the page lights things */
+.mark {
+  position: relative;
+  z-index: 1;
+  box-shadow:
+    0 0 0 2px var(--accent),
+    0 0 18px -2px var(--accent);
+  border-radius: 3px;
+}
+.dlgBtn.mark {
+  background: #fff;
+  color: #000;
+}
+
+/* the source panel */
+.source {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  flex-wrap: wrap;
+  margin-top: 18px;
+  padding: 24px 26px;
+  border-radius: 16px;
+  border: 1px solid var(--line);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.05), transparent);
+}
+.sourceGlow {
+  position: absolute;
+  inset: -40% -10% auto auto;
+  width: 320px;
+  height: 320px;
+  background: radial-gradient(circle, var(--accent-soft), transparent 65%);
+  pointer-events: none;
+}
+.source > div:not(.sourceGlow) {
+  position: relative;
+  min-width: 0;
+}
+.source h3 {
+  margin: 6px 0 8px;
+  font-size: 22px;
+}
+.source p {
+  margin: 0;
+  max-width: 54ch;
+  color: var(--ink-muted);
+  font-size: 15px;
+  line-height: 1.6;
+}
+.sourceCta {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 760px) {
+  .wrap {
+    padding: 22px 18px;
+  }
+  .steps {
+    grid-template-columns: 1fr;
+  }
+  .source {
+    padding: 20px;
+  }
+}

@@ -6,6 +6,7 @@ import { SITE } from "@/lib/site";
 import s from "./Downloads.module.css";
 import { AppleLogo, WindowsLogo } from "./OsLogos";
 import { AppShot } from "./AppShot";
+import { useRouter } from "next/navigation";
 import { useDesktopOs, type DesktopOs } from "@/lib/platform";
 
 type FileKey = "windows" | "macArm" | "macIntel";
@@ -38,24 +39,55 @@ const CARDS: Record<DesktopOs, { logo: React.ReactNode; name: string; req: strin
   },
 };
 
-function Buttons({ os, rel, primary }: { os: DesktopOs; rel: Release | null; primary: boolean }) {
+function Buttons({
+  os,
+  rel,
+  primary,
+  onStart,
+}: {
+  os: DesktopOs;
+  rel: Release | null;
+  primary: boolean;
+  onStart?: (file: FileKey) => void;
+}) {
   const cls = primary ? "btn primary" : "btn";
   const href = (k: FileKey) => `${SITE.downloads}/${rel ? `v${rel.version}` : "latest"}/${FILES[k]}`;
   const size = (k: FileKey) => rel?.files?.[k] && <span className={s.size}>{mb(rel.files[k].size)}</span>;
   if (os === "windows")
     return (
-      <a className={cls} href={href("windows")} target="_blank" rel="noopener noreferrer" download>
+      <a
+        className={cls}
+        href={href("windows")}
+        target="_blank"
+        rel="noopener noreferrer"
+        download
+        onClick={() => onStart?.("windows")}
+      >
         <WindowsLogo /> Windows installer
         {size("windows")}
       </a>
     );
   return (
     <>
-      <a className={cls} href={href("macArm")} target="_blank" rel="noopener noreferrer" download>
+      <a
+        className={cls}
+        href={href("macArm")}
+        target="_blank"
+        rel="noopener noreferrer"
+        download
+        onClick={() => onStart?.("macArm")}
+      >
         <AppleLogo /> Apple Silicon
         {size("macArm")}
       </a>
-      <a className="btn" href={href("macIntel")} target="_blank" rel="noopener noreferrer" download>
+      <a
+        className="btn"
+        href={href("macIntel")}
+        target="_blank"
+        rel="noopener noreferrer"
+        download
+        onClick={() => onStart?.("macIntel")}
+      >
         <AppleLogo /> Intel{size("macIntel")}
       </a>
     </>
@@ -65,6 +97,9 @@ function Buttons({ os, rel, primary }: { os: DesktopOs; rel: Release | null; pri
 export function Downloads() {
   const os = useDesktopOs();
   const [rel, setRel] = useState<Release | null>(null);
+  // the file keeps downloading while the next screen explains the first launch
+  const router = useRouter();
+  const started = (k: FileKey) => setTimeout(() => router.push(`/download/started?f=${k}`), 150);
   useEffect(() => {
     fetch(`${SITE.downloads}/latest/releases.json`)
       .then((r) => (r.ok ? r.json() : null))
@@ -100,7 +135,7 @@ export function Downloads() {
           )}
         </p>
         <div className={s.buttons}>
-          <Buttons os={os} rel={rel} primary />
+          <Buttons os={os} rel={rel} primary onStart={started} />
         </div>
         {main.note && <p className={s.note}>{main.note}</p>}
       </motion.section>
@@ -119,7 +154,7 @@ export function Downloads() {
             <p>{CARDS[other].req}</p>
           </div>
           <div className={s.cardButtons}>
-            <Buttons os={other} rel={rel} primary={false} />
+            <Buttons os={other} rel={rel} primary={false} onStart={started} />
           </div>
         </div>
       </motion.section>
