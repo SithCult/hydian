@@ -1,7 +1,7 @@
 {
   "name": "hydian",
   "private": true,
-  "description": "Hydian — read-only roleplay companion and live map for Star Wars: The Old Republic",
+  "description": "Hydian: read-only roleplay companion and live map for Star Wars: The Old Republic",
   "license": "MIT",
   "packageManager": "pnpm@11.0.8",
   "engines": {
@@ -14,7 +14,7 @@
     "web": "pnpm -C apps/web dev",
     "test:bridge": "node --test apps/desktop/dev-bridge/server.test.mjs",
     "test:desktop": "node --test apps/desktop/test/*.test.mjs",
-    "test": "node --test scripts/release-version.test.mjs && pnpm test:bridge && pnpm test:desktop && pnpm -F @hydian/api test",
+    "test": "node --test scripts/*.test.mjs apps/tiles/serve.test.mjs && pnpm test:bridge && pnpm test:desktop && pnpm -F @hydian/api test",
     "build": "pnpm -r --if-present build",
     "typecheck": "pnpm -r --if-present typecheck",
     "lint": "eslint apps/desktop/src apps/api/src apps/web/app apps/web/components apps/web/lib",

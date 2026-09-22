@@ -47,8 +47,8 @@ pnpm typecheck && pnpm lint && pnpm format:check
 TEST_DATABASE_URL=postgresql://localhost:5432/hydian_test pnpm test
 ```
 
-CI runs the same, then `cargo fmt --check`, `cargo clippy -D warnings` and a full installer build on Windows,
-macOS (Apple Silicon) and macOS (Intel). Rust is formatted with rustfmt (`cargo fmt` in `apps/desktop/src-tauri`),
+CI runs the same. When a change touches the app, it also runs `cargo fmt --check`, `cargo clippy -D warnings`
+and a full installer build on Windows, macOS (Apple Silicon) and macOS (Intel). Rust is formatted with rustfmt (`cargo fmt` in `apps/desktop/src-tauri`),
 everything else with Prettier (`pnpm format`).
 
 Fill in the [PR template](.github/PULL_REQUEST_TEMPLATE.md) with the behavior change and actual check results.

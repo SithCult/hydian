@@ -6,5 +6,6 @@ WORKDIR /srv
 COPY serve.mjs NOTICE.txt ./
 COPY icons ./icons
 COPY maps  ./maps
+USER node
 EXPOSE 8080
 CMD ["node", "serve.mjs"]

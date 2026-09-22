@@ -92,18 +92,19 @@ update features require the native app.
 
 CI runs types, lint, formatting, JavaScript regressions against an isolated Postgres database, native Rust tests,
 and frontend builds, then builds the installers for Windows, macOS
-(Apple Silicon) and macOS (Intel) on every pull request and push to `main`. To release, run
+(Apple Silicon) and macOS (Intel) whenever a pull request or a push to `main` changes the app. To release, run
 `node scripts/bump.mjs patch` (or `minor` / `major`) on a PR branch and commit the version files.
 After that PR is merged, CI tags and builds the reviewed commit. Publication requires
 maintainer approval and successful signing, notarization and updater-signature checks for every platform.
 
 The app defaults to the hosted Hydian backend and artwork. For a local API, create a PostgreSQL database, copy
 `apps/api/.env.example` to `apps/api/.env`, and set `DATABASE_URL` before starting `pnpm api`. Then copy
-`apps/desktop/.env.example` to `apps/desktop/.env` and restart the app to use `http://localhost:8080`.
+`apps/desktop/.env.example` to `apps/desktop/.env.development.local` and restart `pnpm dev` or `pnpm preview` to use
+`http://localhost:8080`. Installer builds always use the hosted API.
 `VITE_ASSET_BASE=/` uses artwork you provide in `apps/desktop/public/` and includes it in builds.
 
 See [local development](docs/LOCAL-DEVELOPMENT.md) for a full local setup and a synthetic demo, and
-[release signing](docs/RELEASING.md) for Apple notarization and Windows signing.
+[releases](docs/RELEASING.md) for how a version is cut, signed and published.
 
 ### Game folders
 
@@ -117,7 +118,7 @@ then choose _Check for logs_ in Hydian.
 
 Releases are cut by CI from `main` (`release.yml`) and land on [hydian.org/download](https://hydian.org/download).
 Installed copies check for a new version on start and every six hours, download it in the background and offer a
-restart. You can also check in Settings › About or the native Help menu. Updates are signed; the public key is in
+restart. You can also check in Settings › About, or on macOS in the Help menu. Updates are signed; the public key is in
 `apps/desktop/src-tauri/tauri.conf.json`. macOS gets native traffic lights, an optional menu-bar icon, autostart and
 the `⌘⇧O` / `⌘⇧L` shortcuts.
 

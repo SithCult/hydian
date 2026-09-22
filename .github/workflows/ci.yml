@@ -14,18 +14,45 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # ---------------------------------------------------------------- web side: types, lint, format, bundles
+  # ---------------------------------------------------------------- types, lint, format, tests, bundles
   check:
     name: typecheck · lint · tests · build
     uses: ./.github/workflows/checks.yml
 
-  # ---------------------------------------------------------------- the app: every platform, every push
+  # ---------------------------------------------------------------- does this change reach the installers?
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      desktop: ${{ steps.diff.outputs.desktop }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - id: diff
+        env:
+          BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          # manual runs, new branches and anything unexpected build everything
+          if [ "$GITHUB_EVENT_NAME" = workflow_dispatch ] || [ -z "$BASE" ] || [ "$BASE" = 0000000000000000000000000000000000000000 ] \
+            || ! files=$(git diff --name-only "$BASE" "$GITHUB_SHA"); then
+            echo "desktop=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if grep -qE '^(apps/desktop/|pnpm-lock\.yaml$|pnpm-workspace\.yaml$|package\.json$|\.nvmrc$|\.github/workflows/ci\.yml$)' <<< "$files"; then
+            echo "desktop=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "desktop=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  # ---------------------------------------------------------------- the app: every platform
   desktop:
     name: ${{ matrix.name }}
-    needs: check
+    needs: [check, changes]
+    if: needs.changes.outputs.desktop == 'true'
     strategy:
       fail-fast: false
-      matrix:
+      matrix: &platforms
         include:
           - name: Windows x64
             os: windows-latest
@@ -109,3 +136,15 @@ jobs:
             bin=$(find apps/desktop/src-tauri/target/${{ matrix.target }}/release -maxdepth 1 -type f \( -name hydian -o -name hydian.exe \) | head -1)
             [ -n "$bin" ] && echo "| binary $(basename "$bin") | $(du -h "$bin" | cut -f1) |"
           } >> "$GITHUB_STEP_SUMMARY"
+
+  # ---------------------------------------------------------------- the same required checks, no app change
+  # A skipped matrix job reports under its unexpanded name, so these report the platform checks instead.
+  desktop-unchanged:
+    name: ${{ matrix.name }}
+    needs: changes
+    if: needs.changes.outputs.desktop != 'true'
+    strategy:
+      matrix: *platforms
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "This change does not touch the app; no installer to build."
