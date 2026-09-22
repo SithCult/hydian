@@ -13,6 +13,14 @@ on:
       tag:
         type: string
         required: true
+    # a called workflow sees only the secrets named here; the values come from the downloads environment
+    secrets:
+      R2_ACCESS_KEY_ID:
+        required: false
+      R2_SECRET_ACCESS_KEY:
+        required: false
+      R2_ACCOUNT_ID:
+        required: false
 
 concurrency:
   group: publish-downloads
