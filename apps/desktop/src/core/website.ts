@@ -12,7 +12,7 @@ export async function openWebsitePage(page: WebsitePage) {
     const { invoke } = await import("@tauri-apps/api/core");
     await invoke("open_website_page", { page });
   } catch {
-    const address = WEBSITE_PAGES[page].url.replace("https://", "");
+    const address = WEBSITE_PAGES[page].url.replace(/^https:\/\/(www\.)?/, ""); // the short form people type
     useApp.getState().toast(`Could not open this page. Visit ${address} in your browser.`, "warn");
   }
 }
