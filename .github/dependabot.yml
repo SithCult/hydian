@@ -9,6 +9,16 @@ updates:
       dependencies:
         patterns: ["*"]
         update-types: [minor, patch]
+  # the API image installs from its own npm lockfile; scripts/api-lockfiles.test.mjs fails when it disagrees with pnpm's
+  - package-ecosystem: npm
+    directory: /apps/api
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 2
+    groups:
+      dependencies:
+        patterns: ["*"]
+        update-types: [minor, patch]
   - package-ecosystem: cargo
     directory: /apps/desktop/src-tauri
     schedule:

@@ -568,33 +568,6 @@ html[data-os="mac"] .rail {
 .topbar .grow {
   flex: 1;
 }
-.seg {
-  display: flex;
-  background: var(--bg-rail);
-  border-radius: 6px;
-  padding: 2px;
-}
-.seg button {
-  padding: 4px 12px;
-  border-radius: 4px;
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--text-muted);
-  display: flex;
-  gap: 6px;
-  align-items: center;
-  transition:
-    background 0.12s,
-    color 0.12s;
-}
-.seg button svg {
-  width: 14px;
-  height: 14px;
-}
-.seg button.on {
-  background: var(--bg-active);
-  color: var(--text-strong);
-}
 .top-search {
   position: relative;
 }
@@ -1401,12 +1374,6 @@ kbd {
   margin-left: 6px;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-}
-.map-legend .lg-sep {
-  width: 1px;
-  height: 12px;
-  background: var(--line-soft);
-  margin: 0 2px;
 }
 
 /* ---- profile (no self-authored text) */
@@ -2389,14 +2356,6 @@ html.overlay-page #root {
   border-color: var(--accent);
   outline: none;
 }
-.ob-fine {
-  margin-top: 10px;
-  font-size: 11px;
-  color: var(--text-faint);
-}
-.ob-fine code {
-  font: 11px var(--mono);
-}
 .ob-lead {
   margin: 0 0 22px;
   color: var(--text-muted);
@@ -2670,22 +2629,6 @@ html.overlay-page #root {
 }
 .notes .mc-head {
   margin-bottom: 8px;
-}
-.notes-add {
-  width: 100%;
-  text-align: left;
-  padding: 10px 12px;
-  border-radius: 8px;
-  border: 1px dashed var(--line-soft);
-  color: var(--text-muted);
-  font-size: 13px;
-  transition:
-    background 0.1s,
-    color 0.1s;
-}
-.notes-add:hover {
-  background: var(--bg-hover);
-  color: var(--text);
 }
 /* editor (BlockNote) */
 .editor {
