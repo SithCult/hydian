@@ -1,31 +1,42 @@
 // Tiny static server for the map artwork: immutable cache headers, CORS, nothing else.
 import { createServer } from "node:http";
-import { createReadStream, statSync } from "node:fs";
-import { extname, join, resolve, sep } from "node:path";
+import { createReadStream, readdirSync, statSync } from "node:fs";
+import { extname, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const ROOT = fileURLToPath(new URL("./", import.meta.url));
-const SERVED = ["maps", "icons"].map((dir) => resolve(ROOT, dir) + sep);
 const TYPES = { ".webp": "image/webp", ".png": "image/png", ".json": "application/json", ".svg": "image/svg+xml" };
 
-/** The artwork file a request names, or null: only known image/data types inside maps/ or icons/. */
-export function artworkPath(rawUrl) {
-  let url;
-  try {
-    url = decodeURIComponent((rawUrl ?? "/").split("?")[0]);
-  } catch {
-    return null;
+/** Every artwork file under maps/ and icons/, by the URL path it is served at. The server opens nothing else. */
+export function indexArtwork(root) {
+  const files = new Map();
+  for (const dir of ["maps", "icons"]) {
+    let entries;
+    try {
+      entries = readdirSync(join(root, dir), { recursive: true, withFileTypes: true });
+    } catch {
+      continue;
+    }
+    for (const entry of entries) {
+      const type = TYPES[extname(entry.name).toLowerCase()];
+      if (!entry.isFile() || !type) continue;
+      const path = join(entry.parentPath, entry.name);
+      files.set("/" + relative(root, path).split(sep).join("/"), { path, type, size: statSync(path).size });
+    }
   }
-  // a backslash is a separator only on Windows; refusing it keeps both platforms to the same paths
-  if (url.includes("\\") || url.includes("\0") || !TYPES[extname(url).toLowerCase()]) return null;
-  const file = resolve(ROOT, "." + url);
-  return SERVED.some((dir) => file.startsWith(dir)) ? file : null;
+  return files;
 }
 
-const notFound = (res) => {
-  res.writeHead(404);
-  res.end();
-};
+/** The indexed file a request names, or null. */
+export function lookup(index, rawUrl) {
+  try {
+    return index.get(decodeURIComponent((rawUrl ?? "/").split("?")[0])) ?? null;
+  } catch {
+    return null; // a malformed escape names nothing
+  }
+}
+
+const ARTWORK = indexArtwork(ROOT);
 
 export const server = createServer((req, res) => {
   const path = (req.url ?? "/").split("?")[0];
@@ -37,23 +48,19 @@ export const server = createServer((req, res) => {
     res.writeHead(200, { "content-type": "text/plain; charset=utf-8", "cache-control": "public, max-age=3600" });
     return createReadStream(join(ROOT, "NOTICE.txt")).pipe(res);
   }
-  const file = artworkPath(req.url);
-  if (!file) return notFound(res);
-  let st;
-  try {
-    st = statSync(file);
-  } catch {
-    return notFound(res);
+  const file = lookup(ARTWORK, req.url);
+  if (!file) {
+    res.writeHead(404);
+    return res.end();
   }
-  if (!st.isFile()) return notFound(res);
   res.writeHead(200, {
-    "content-type": TYPES[extname(file).toLowerCase()],
-    "content-length": st.size,
+    "content-type": file.type,
+    "content-length": file.size,
     "cache-control": "public, max-age=31536000, immutable",
     "access-control-allow-origin": "*",
   });
   if (req.method === "HEAD") return res.end();
-  createReadStream(file).pipe(res);
+  createReadStream(file.path).pipe(res);
 });
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url))
