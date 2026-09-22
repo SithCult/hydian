@@ -71,6 +71,10 @@ jobs:
           fi
           mkdir -p out/latest "out/$TAG"
           gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --dir assets
+          # tauri-action 1.x lists assets by API URL; name them by download URL like the checks below expect
+          while read -r api name; do
+            sed -i "s#\"$api\"#\"https://github.com/$GITHUB_REPOSITORY/releases/download/$TAG/$name\"#" assets/latest.json
+          done < <(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[] | "\(.apiUrl) \(.name)"')
           jq -r '.plugins.updater.pubkey' apps/desktop/src-tauri/tauri.conf.json | base64 --decode > updater.pub
           jq -e --arg version "${TAG#v}" --arg prefix "https://github.com/$GITHUB_REPOSITORY/releases/download/$TAG/" '
             .version == $version and
