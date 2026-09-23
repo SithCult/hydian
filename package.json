@@ -1,7 +1,7 @@
 {
   "name": "hydian",
   "private": true,
-  "description": "Hydian: read-only roleplay companion and live map for Star Wars: The Old Republic",
+  "description": "Hydian: roleplay companion and live map for Star Wars: The Old Republic",
   "license": "MIT",
   "packageManager": "pnpm@11.25.0",
   "engines": {
