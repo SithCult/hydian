@@ -1,5 +1,5 @@
 import type { CSSProperties } from "react";
-import { CircleArrowDown, LoaderCircle, TriangleAlert } from "lucide-react";
+import { CircleArrowDown, LoaderCircle, TriangleAlert, Wrench } from "lucide-react";
 import { SERVERS } from "../data/servers";
 import { useApp } from "../store";
 import { selectCounts } from "../selectors";
@@ -82,6 +82,15 @@ export function ServerRail() {
           </button>
         </Tip>
       )}
+      <Tip label="Tools" side="right">
+        <button
+          className={`rail-btn rail-view ${view === "tools" ? "active" : ""}`}
+          aria-label="Tools"
+          onClick={() => setView("tools")}
+        >
+          <Wrench width={20} height={20} />
+        </button>
+      </Tip>
       <Tip label="Settings" side="right">
         <button className="rail-btn" aria-label="Settings" onClick={() => openModal({ kind: "settings" })}>
           {Icons.gear({ width: 20, height: 20 })}

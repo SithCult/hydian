@@ -3,7 +3,7 @@
 Three rules shape every change:
 
 1. **The game link reads.** Native game-file access is limited to reading combat logs and `.ini` files.
-   Hydian never writes into game folders.
+   The one write is the chat colour tool, which changes only the `ChatColors` line of a character's settings.
 2. **Profiles are a name, a status and a place.** Notes and the journal are the place for text, and they stay
    on the device.
 3. **No slop.** Use whatever tools you like, AI included; we do. What you open a pull request with has to be

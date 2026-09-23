@@ -59,7 +59,8 @@ import { selectMe, selectPlayersOn } from "./selectors";
 import { DEMO, demoState } from "./core/demo";
 
 export type LinkStatus = "idle" | "scanning" | "live" | "nolog" | "error";
-export type View = "map" | "registry" | "journal";
+export type View = "map" | "registry" | "journal" | "tools";
+export type ToolId = "chat-colors";
 export type SettingsTab = "game" | "overlay" | "startup" | "map" | "privacy" | "about";
 export type Modal =
   | { kind: "profile"; key: string }
@@ -95,6 +96,7 @@ export interface AppState {
   server: string;
   planet: string; // planet slug
   view: View;
+  tool: ToolId; // the open tool in the Tools view
   followMe: boolean;
   showPhases: boolean; // show story-phase floors on maps
   heat: boolean; // RP heat layer on the map (aggregated server data)
@@ -141,6 +143,7 @@ export interface AppState {
   selectServer(id: string): void;
   selectPlanet(slug: string): void;
   setView(v: View): void;
+  setTool(t: ToolId): void;
   setFollowMe(v: boolean): void;
   setShowPhases(v: boolean): void;
   setHeat(v: boolean): void;
@@ -289,6 +292,7 @@ export const useApp = create<AppState>((set, get) => ({
     return PLANETS.some((p) => p.slug === v) ? v : "nar-shaddaa";
   })(),
   view: "map",
+  tool: "chat-colors",
   followMe: true,
   showPhases: LS.get("showPhases", false),
   heat: LS.get("heat", false),
@@ -633,6 +637,9 @@ export const useApp = create<AppState>((set, get) => ({
   },
   setView(view) {
     set({ view });
+  },
+  setTool(tool) {
+    set({ tool, view: "tools" });
   },
   setFollowMe(followMe) {
     set({ followMe });
