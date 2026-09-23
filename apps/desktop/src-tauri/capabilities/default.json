@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Core, folder-picker dialog, autostart, global shortcuts, and window control for the app's own caption buttons, the tray and the overlay. File access is via three app commands that can only read combat logs and .ini files.",
+  "description": "Core, folder-picker dialog, autostart, global shortcuts, and window control for the app's own caption buttons, the tray and the overlay. File access is via app commands that read combat logs and character settings, and write only the chat colour line of a character settings file.",
   "windows": ["main", "overlay"],
   "permissions": [
     "autostart:allow-disable",

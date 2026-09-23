@@ -1,8 +1,9 @@
-// Game file access uses three read-only commands.
+// Game file access uses three read commands and one write.
 //
 //  * fs_read_dir  - names in a folder (no per-file stat)
 //  * fs_stat      - size + mtime of one file
 //  * fs_read      - a byte range of one file, returned as raw bytes (zero-copy IPC)
+//  * chat_colors_write - the ChatColors line of a PlayerGUIState file, nothing else
 //
 // Stat and read accept only the game files the app understands: combat logs and the two per-character
 // settings files (PlayerGUIState, LocalSocialSettings). Folder listings return names only.
@@ -220,9 +221,158 @@ fn fs_read(path: String, offset: u64, length: u64) -> Result<Response, FileError
     Ok(Response::new(buf))
 }
 
+// The one write: the ChatColors line of a character's PlayerGUIState.ini (the chat colour tool).
+// Every other line stays byte for byte. The first write keeps the file's original colours in Hydian's
+// data folder, never next to the game's files.
+
+fn gui_state_file(path: &Path) -> Result<PathBuf, FileError> {
+    let resolved = allowed_file(path)?;
+    let name = resolved
+        .file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or_default()
+        .to_ascii_lowercase();
+    if !name.ends_with("_playerguistate.ini") {
+        return Err("only character GUI state files hold chat colours".into());
+    }
+    Ok(resolved)
+}
+
+fn chat_colors_line(text: &[u8]) -> Option<(usize, usize)> {
+    let mut start = 0;
+    for line in text.split(|&b| b == b'\n') {
+        let end = start + line.len();
+        let trimmed = line.trim_ascii_start();
+        if trimmed.len() >= 10
+            && trimmed[..10].eq_ignore_ascii_case(b"chatcolors")
+            && trimmed[10..].trim_ascii_start().first() == Some(&b'=')
+        {
+            return Some((start, end));
+        }
+        start = end + 1;
+    }
+    None
+}
+
+fn line_value(text: &[u8], (start, end): (usize, usize)) -> String {
+    let line = &text[start..end];
+    let eq = line.iter().position(|&b| b == b'=').map_or(line.len(), |i| i + 1);
+    String::from_utf8_lossy(line[eq..].trim_ascii()).into_owned()
+}
+
+/// Sets the given colours (6 hex digits; an empty entry keeps the current one) and keeps entries past them.
+fn rewrite_chat_colors(text: &[u8], colors: &[String]) -> Result<Vec<u8>, String> {
+    if colors.len() > 64 {
+        return Err("too many colours".into());
+    }
+    if let Some(bad) = colors
+        .iter()
+        .find(|c| !(c.is_empty() || c.len() == 6 && c.bytes().all(|b| b.is_ascii_hexdigit())))
+    {
+        return Err(format!("not a colour: {bad}"));
+    }
+    let found = chat_colors_line(text);
+    // the game ends the list with ';'; everything before that, empty slots included, is kept as is
+    let current = found.map(|range| line_value(text, range)).unwrap_or_default();
+    let current = current.strip_suffix(';').unwrap_or(&current);
+    let mut values: Vec<String> = if current.is_empty() {
+        Vec::new()
+    } else {
+        current.split(';').map(str::to_owned).collect()
+    };
+    if values.len() < colors.len() {
+        values.resize(colors.len(), String::new());
+    }
+    for (i, color) in colors.iter().enumerate() {
+        if !color.is_empty() {
+            values[i] = color.to_ascii_lowercase();
+        }
+    }
+    let line = format!("ChatColors = {};", values.join(";"));
+    let mut out = Vec::with_capacity(text.len() + line.len());
+    match found {
+        Some((start, end)) => {
+            let cr = end > start && text[end - 1] == b'\r';
+            out.extend_from_slice(&text[..start]);
+            out.extend_from_slice(line.as_bytes());
+            if cr {
+                out.push(b'\r');
+            }
+            out.extend_from_slice(&text[end..]);
+        }
+        None => {
+            // a character that never changed a colour: the line goes right under [Settings]
+            let header = text
+                .windows(10)
+                .position(|w| w.eq_ignore_ascii_case(b"[settings]"))
+                .ok_or("the file has no [Settings] section")?;
+            let eol = text[header..]
+                .iter()
+                .position(|&b| b == b'\n')
+                .map_or(text.len(), |i| header + i + 1);
+            let newline: &[u8] = if text.windows(2).any(|w| w == b"\r\n") {
+                b"\r\n"
+            } else {
+                b"\n"
+            };
+            out.extend_from_slice(&text[..eol]);
+            if eol == text.len() && !text.ends_with(b"\n") {
+                out.extend_from_slice(newline);
+            }
+            out.extend_from_slice(line.as_bytes());
+            out.extend_from_slice(newline);
+            out.extend_from_slice(&text[eol..]);
+        }
+    }
+    Ok(out)
+}
+
+fn backup_dir(app: &tauri::AppHandle) -> Result<PathBuf, FileError> {
+    let dir = app
+        .path()
+        .app_data_dir()
+        .map_err(|e| FileError::from(e.to_string()))?
+        .join("chat-color-backups");
+    std::fs::create_dir_all(&dir)?;
+    Ok(dir)
+}
+
+#[tauri::command]
+fn chat_colors_write(app: tauri::AppHandle, path: String, colors: Vec<String>) -> Result<(), FileError> {
+    let file = gui_state_file(Path::new(&path))?;
+    let text = std::fs::read(&file)?;
+    let updated = rewrite_chat_colors(&text, &colors)?;
+    if updated == text {
+        return Ok(());
+    }
+    let name = file.file_name().ok_or("bad path")?;
+    let backup = backup_dir(&app)?.join(name);
+    if !backup.exists() {
+        std::fs::write(&backup, &text)?;
+    }
+    // write next to the file, then swap it in, so the game never reads a half-written file
+    let staged = file.with_extension("ini.hydian");
+    std::fs::write(&staged, &updated)?;
+    if let Err(error) = std::fs::rename(&staged, &file) {
+        let _ = std::fs::remove_file(&staged);
+        return Err(error.into());
+    }
+    Ok(())
+}
+
+#[tauri::command]
+fn chat_colors_original(app: tauri::AppHandle, path: String) -> Result<Option<String>, FileError> {
+    let name = Path::new(&path).file_name().ok_or("bad path")?.to_owned();
+    gui_state_file(Path::new(&path))?;
+    let Ok(text) = std::fs::read(backup_dir(&app)?.join(name)) else {
+        return Ok(None);
+    };
+    Ok(chat_colors_line(&text).map(|range| line_value(&text, range)))
+}
+
 #[cfg(test)]
 mod tests {
-    use super::{allowed_file, fs_read_dir, swtor_process, FileError, WebsitePage};
+    use super::{allowed_file, fs_read_dir, rewrite_chat_colors, swtor_process, FileError, WebsitePage};
     use std::{
         ffi::{OsStr, OsString},
         fs,
@@ -373,6 +523,29 @@ mod tests {
         let directory = fixture.0.join("combat_directory.txt");
         fs::create_dir(&directory).unwrap();
         assert!(allowed_file(&directory).is_err());
+    }
+
+    #[test]
+    fn chat_colors_change_only_their_own_line() {
+        let colors = |v: &[&str]| v.iter().map(|s| s.to_string()).collect::<Vec<_>>();
+        let text = b"[Settings]\r\nGUI_A = 1\r\nChatColors = b3ecff;ff7397;;a59ff3;;;;\r\nGUI_B = caf\xe9\r\n";
+        let out = rewrite_chat_colors(text, &colors(&["AABBCC", "", "112233"])).unwrap();
+        assert_eq!(
+            out,
+            b"[Settings]\r\nGUI_A = 1\r\nChatColors = aabbcc;ff7397;112233;a59ff3;;;;\r\nGUI_B = caf\xe9\r\n"
+        );
+
+        let fresh = b"[Settings]\nGUI_A = 1\n";
+        let out = rewrite_chat_colors(fresh, &colors(&["aabbcc", "ddeeff"])).unwrap();
+        assert_eq!(out, b"[Settings]\nChatColors = aabbcc;ddeeff;\nGUI_A = 1\n");
+
+        assert!(rewrite_chat_colors(text, &colors(&["red"])).is_err());
+        assert!(rewrite_chat_colors(text, &colors(&["aabbcc\nGUI_X = 1"])).is_err());
+        assert!(rewrite_chat_colors(b"GUI_A = 1\n", &colors(&["aabbcc"])).is_err());
+        // a key that only starts with the name is a different setting
+        let similar = b"[Settings]\nChatColorsVersion = 2\n";
+        let out = rewrite_chat_colors(similar, &colors(&["aabbcc"])).unwrap();
+        assert_eq!(out, b"[Settings]\nChatColors = aabbcc;\nChatColorsVersion = 2\n");
     }
 
     #[cfg(unix)]
@@ -542,6 +715,8 @@ pub fn run() {
             fs_read_dir,
             fs_stat,
             fs_read,
+            chat_colors_write,
+            chat_colors_original,
             launched_minimized,
             is_game_running,
             autostart_enable,

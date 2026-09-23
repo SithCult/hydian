@@ -10,6 +10,7 @@ import "./styles/fonts.css";
 import "./styles/app.css";
 import "./styles/game-link.css";
 import "./styles/onboarding.css";
+import "./styles/tools.css";
 
 // The same bundle serves two windows: the app, and the transparent in-game overlay (index.html?overlay=1).
 const overlay = new URLSearchParams(location.search).has("overlay");

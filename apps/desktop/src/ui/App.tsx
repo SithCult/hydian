@@ -10,6 +10,8 @@ import { Registry } from "./Registry";
 import { Journal } from "./Journal";
 import { ServerRail } from "./ServerRail";
 import { Sidebar } from "./Sidebar";
+import { ToolsSidebar } from "./tools/ToolsSidebar";
+import { toolById } from "./tools/tools";
 import { Boundary } from "./Boundary";
 import { UpdateBar } from "./UpdateBar";
 import { GameLinkBanner } from "./GameLink";
@@ -30,6 +32,7 @@ export function App() {
   const search = useApp((s) => s.search);
   const setSearch = useApp((s) => s.setSearch);
   const planet = planetBySlug(slug);
+  const tool = toolById(useApp((s) => s.tool));
 
   useEffect(() => {
     void boot();
@@ -80,20 +83,27 @@ export function App() {
   return (
     <div className="app">
       <ServerRail />
-      <Sidebar />
+      {view === "tools" ? <ToolsSidebar /> : <Sidebar />}
       <main className="main">
         <UpdateBar />
         <GameLinkBanner />
         <header className="topbar" data-tauri-drag-region>
           <h1>
             {view === "map" && planet && <PlanetIcon slug={planet.slug} size={26} faction={planet.faction} />}
-            {view === "map" ? planet?.name : view === "registry" ? "Registry" : "Journal"}{" "}
+            {view === "map"
+              ? planet?.name
+              : view === "registry"
+                ? "Registry"
+                : view === "tools"
+                  ? tool.name
+                  : "Journal"}{" "}
             {view === "map" && planet?.faction && (
               <span className={`fac ${planet.faction}`}>{planet.faction === "imp" ? "IMPERIAL" : "REPUBLIC"}</span>
             )}
           </h1>
+          {view === "tools" && <span className="desc">{tool.blurb}</span>}
           <span className="grow" />
-          <div className="top-search">
+          <div className="top-search" hidden={view === "tools"}>
             {Icons.search()}
             <input
               id="top-search"
@@ -122,6 +132,10 @@ export function App() {
         ) : view === "registry" ? (
           <Boundary name="registry">
             <Registry />
+          </Boundary>
+        ) : view === "tools" ? (
+          <Boundary name={tool.name}>
+            <tool.Component />
           </Boundary>
         ) : (
           <Boundary name="journal">
