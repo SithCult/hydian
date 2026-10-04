@@ -26,10 +26,10 @@
     "eslint": "^10.11.0",
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-react-refresh": "^0.5.7",
-    "prettier": "^3.9.8",
+    "prettier": "^3.9.9",
     "typescript": "^5.9.3",
-    "typescript-eslint": "^8.70.0",
-    "wrangler": "4.135.0"
+    "typescript-eslint": "^8.71.0",
+    "wrangler": "4.145.0"
   },
   "type": "module"
 }
