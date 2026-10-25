@@ -3,7 +3,7 @@ export const SITE = {
   url: "https://www.hydian.org",
   tagline: "Where roleplay is happening in SWTOR.",
   description:
-    "Free, open-source desktop companion for roleplay in Star Wars: The Old Republic. See who is In Character where, on the in-game maps. No account needed.",
+    "See who is roleplaying in SWTOR and where, on the in-game maps. Find scenes away from the hotspots, or be found on a quiet corner of Balmorra. Free and open source.",
   github: "https://github.com/SithCult/hydian",
   releases: "https://github.com/SithCult/hydian/releases/latest",
   downloads: "https://dl.hydian.org", // installers, published by .github/workflows/publish.yml

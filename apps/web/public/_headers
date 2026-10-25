@@ -16,3 +16,12 @@
 
 /*.svg
   Cache-Control: public, max-age=604800
+
+# share images are generated without a file extension
+/opengraph-image
+  Content-Type: image/png
+  Cache-Control: public, max-age=604800
+
+/*/opengraph-image
+  Content-Type: image/png
+  Cache-Control: public, max-age=604800
