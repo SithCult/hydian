@@ -119,6 +119,19 @@ jobs:
             --output-partial-info-plist "$icon/out/assetcatalog_generated_info.plist" --app-icon Icon \
             --include-all-app-icons --accent-color AccentColor --enable-on-demand-resources NO \
             --development-region en --target-device mac --minimum-deployment-target 26.0 --platform macosx
+          mkdir -p "$icon/env12" && MACOSX_DEPLOYMENT_TARGET=12.0 actool "$icon/Icon.icon" --compile "$icon/env12" \
+            --output-format human-readable-text --notices --warnings \
+            --output-partial-info-plist "$icon/env12/assetcatalog_generated_info.plist" --app-icon Icon \
+            --include-all-app-icons --accent-color AccentColor --enable-on-demand-resources NO \
+            --development-region en --target-device mac --minimum-deployment-target 26.0 --platform macosx \
+            || echo "actool exit $?"
+          ls -la "$icon/out" "$icon/env12"
+
+      - if: runner.os == 'macOS'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: actool-${{ matrix.target }}
+          path: ${{ runner.temp }}/actool
 
       - name: Build the installer
         # plain installers: updater artifacts (and the signing key) are only needed by the release workflow
