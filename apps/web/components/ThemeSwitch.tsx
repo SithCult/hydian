@@ -2,27 +2,13 @@
 import { useSide } from "@/lib/side";
 import s from "./ThemeSwitch.module.css";
 
-const THEMES = [
-  ["republic", "Gold"],
-  ["empire", "Crimson"],
-] as const;
-
-// A quiet pair of dots at the end of the footer: a small easter egg rather than a setting.
+// A quiet footer link that flips the site between gold and crimson: an easter egg rather than a setting.
 export function ThemeSwitch() {
   const { side, setSide } = useSide();
+  const gold = side === "republic";
   return (
-    <span className={s.switch} role="radiogroup" aria-label="Site colour">
-      {THEMES.map(([k, label]) => (
-        <button
-          key={k}
-          role="radio"
-          aria-checked={side === k}
-          aria-label={label}
-          title={label}
-          className={`${s[k]} ${side === k ? s.on : ""}`}
-          onClick={() => setSide(k)}
-        />
-      ))}
-    </span>
+    <button className={s.switch} onClick={() => setSide(gold ? "empire" : "republic")}>
+      {gold ? "Try crimson" : "Back to gold"}
+    </button>
   );
 }

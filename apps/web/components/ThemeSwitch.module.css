@@ -1,32 +1,8 @@
 .switch {
-  display: inline-flex;
-  gap: 6px;
-  margin-left: 10px;
-  vertical-align: middle;
-}
-.switch button {
-  width: 9px;
-  height: 9px;
   padding: 0;
   border: 0;
-  border-radius: 50%;
-  background: var(--dot);
-  opacity: 0.35;
+  background: none;
+  color: var(--accent);
+  font: inherit;
   cursor: pointer;
-  transition:
-    opacity 0.3s,
-    box-shadow 0.3s;
-}
-.switch button:hover,
-.switch .on {
-  opacity: 1;
-}
-.switch .on {
-  box-shadow: 0 0 8px 1px color-mix(in srgb, var(--dot) 60%, transparent);
-}
-.republic {
-  --dot: #e9c87a;
-}
-.empire {
-  --dot: #e0474f;
 }

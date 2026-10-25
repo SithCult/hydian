@@ -248,8 +248,7 @@ export function Footer() {
         <a href={SITE.github} target="_blank" rel="noopener noreferrer">
           SithCult
         </a>{" "}
-        · <a href="/about">About &amp; contact</a> · <a href="/privacy">Privacy</a>
-        <ThemeSwitch />
+        · <a href="/about">About &amp; contact</a> · <a href="/privacy">Privacy</a> · <ThemeSwitch />
       </p>
       <p className="fine">{SITE.disclaimer}</p>
     </footer>
