@@ -3,6 +3,7 @@ import { GitHubLogo } from "./OsLogos";
 import { PlatformDownloadLinks } from "./PlatformDownloadLinks";
 import { Reveal } from "./Reveal";
 import s from "./Sections.module.css";
+import { ThemeSwitch } from "./ThemeSwitch";
 
 export function DataReadout() {
   return (
@@ -226,7 +227,7 @@ export function Download() {
         <div className={s.dlIcon}>
           <img src="/icon.webp" width={112} height={112} alt="" draggable={false} />
         </div>
-        <h2 className={s.dlTitle}>Your next scene is already on the map.</h2>
+        <h2 className={s.dlTitle}>Ready to meet new people on Hydian?</h2>
         <p>Free, open source, no account. Windows and macOS.</p>
         <div className={s.cta}>
           <PlatformDownloadLinks />
@@ -247,7 +248,7 @@ export function Footer() {
         <a href={SITE.github} target="_blank" rel="noopener noreferrer">
           SithCult
         </a>{" "}
-        · <a href="/about">About &amp; contact</a> · <a href="/privacy">Privacy</a>
+        · <a href="/about">About &amp; contact</a> · <a href="/privacy">Privacy</a> · <ThemeSwitch />
       </p>
       <p className="fine">{SITE.disclaimer}</p>
     </footer>
