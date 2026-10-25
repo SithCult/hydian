@@ -105,9 +105,16 @@ jobs:
       - name: Use Xcode 26 for the Liquid Glass app icon
         if: runner.os == 'macOS'
         run: |
-          xcode=$(ls -d /Applications/Xcode_26*.app | grep -vi beta | sort -V | tail -1)
-          [ -n "$xcode" ] || { echo 'Xcode 26 is required to compile the app icon.' >&2; exit 1; }
-          sudo xcode-select -s "$xcode"
+          if [ "$(xcodebuild -version | sed -n 's/^Xcode \([0-9]*\).*/\1/p')" -lt 26 ]; then
+            xcode=$(ls -d /Applications/Xcode_26*.app | grep -vi beta | sort -V | tail -1)
+            [ -n "$xcode" ] || { echo 'Xcode 26 is required to compile the app icon.' >&2; exit 1; }
+            sudo xcode-select -s "$xcode"
+          fi
+          sudo xcodebuild -runFirstLaunch
+          xcodebuild -version
+          # Tauri hides actool's output, so compile the icon once here where errors are readable.
+          xcrun actool apps/desktop/branding/hydian.icon --compile "$RUNNER_TEMP" --platform macosx \
+            --minimum-deployment-target 12.0 --app-icon hydian --output-partial-info-plist "$RUNNER_TEMP/icon.plist"
 
       - name: Build the installer
         # plain installers: updater artifacts (and the signing key) are only needed by the release workflow
