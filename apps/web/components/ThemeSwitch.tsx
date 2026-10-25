@@ -3,16 +3,16 @@ import { useSide } from "@/lib/side";
 import s from "./ThemeSwitch.module.css";
 
 const THEMES = [
-  ["republic", "Light side"],
-  ["empire", "Dark side"],
+  ["republic", "Gold"],
+  ["empire", "Crimson"],
 ] as const;
 
 export function ThemeSwitch() {
   const { side, setSide } = useSide();
   return (
     <div className={s.wrap}>
-      <span className={s.label}>Site theme</span>
-      <div className={s.switch} role="radiogroup" aria-label="Site theme">
+      <span className={s.label}>Site colour</span>
+      <div className={s.switch} role="radiogroup" aria-label="Site colour">
         {THEMES.map(([k, label]) => (
           <button
             key={k}

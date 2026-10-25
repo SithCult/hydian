@@ -38,8 +38,8 @@ export default function Privacy() {
           overlay checks locally whether SWTOR is running.
         </p>
         <p>
-          The website saves your light side or dark side theme preference in your browser. You can clear this preference through
-          your browser&apos;s site-data settings.
+          The website saves your gold or crimson colour preference in your browser. You can clear this preference
+          through your browser&apos;s site-data settings.
         </p>
 
         <h2>Information shared with Hydian</h2>
