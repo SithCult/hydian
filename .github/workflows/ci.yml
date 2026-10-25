@@ -130,37 +130,6 @@ jobs:
         run: cargo test --locked --target ${{ matrix.target }}
         working-directory: apps/desktop/src-tauri
 
-      - name: Use Xcode 26 for the Liquid Glass app icon
-        if: runner.os == 'macOS'
-        run: |
-          if [ "$(xcodebuild -version | sed -n 's/^Xcode \([0-9]*\).*/\1/p')" -lt 26 ]; then
-            xcode=$(ls -d /Applications/Xcode_26*.app | grep -vi beta | sort -V | tail -1)
-            [ -n "$xcode" ] || { echo 'Xcode 26 is required to compile the app icon.' >&2; exit 1; }
-            sudo xcode-select -s "$xcode"
-          fi
-          sudo xcodebuild -runFirstLaunch
-          xcodebuild -version
-          # Tauri hides actool's output, so run its exact compile once here where errors are readable.
-          icon="$RUNNER_TEMP/actool"
-          mkdir -p "$icon/out" && cp -R apps/desktop/branding/hydian.icon "$icon/Icon.icon"
-          actool "$icon/Icon.icon" --compile "$icon/out" --output-format human-readable-text --notices --warnings \
-            --output-partial-info-plist "$icon/out/assetcatalog_generated_info.plist" --app-icon Icon \
-            --include-all-app-icons --accent-color AccentColor --enable-on-demand-resources NO \
-            --development-region en --target-device mac --minimum-deployment-target 26.0 --platform macosx
-          mkdir -p "$icon/env12" && MACOSX_DEPLOYMENT_TARGET=12.0 actool "$icon/Icon.icon" --compile "$icon/env12" \
-            --output-format human-readable-text --notices --warnings \
-            --output-partial-info-plist "$icon/env12/assetcatalog_generated_info.plist" --app-icon Icon \
-            --include-all-app-icons --accent-color AccentColor --enable-on-demand-resources NO \
-            --development-region en --target-device mac --minimum-deployment-target 26.0 --platform macosx \
-            || echo "actool exit $?"
-          ls -la "$icon/out" "$icon/env12"
-
-      - if: runner.os == 'macOS'
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: actool-${{ matrix.target }}
-          path: ${{ runner.temp }}/actool
-
       - name: Build the installer
         # plain installers: updater artifacts (and the signing key) are only needed by the release workflow
         shell: bash
