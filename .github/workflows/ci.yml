@@ -88,7 +88,7 @@ jobs:
             bundles: nsis
             ext: exe
           - name: macOS Apple Silicon
-            os: macos-latest
+            os: xcode-27
             target: aarch64-apple-darwin
             bundles: dmg
             ext: dmg
@@ -138,6 +138,13 @@ jobs:
           --config '{"bundle":{"createUpdaterArtifacts":false}}'
         env:
           APPLE_SIGNING_IDENTITY: "-"
+
+      - name: Check the Liquid Glass app icon
+        if: runner.os == 'macOS'
+        run: |
+          app=apps/desktop/src-tauri/target/${{ matrix.target }}/release/bundle/macos/Hydian.app
+          [ -f "$app/Contents/Resources/Assets.car" ] || { echo 'The Liquid Glass app icon is missing.' >&2; exit 1; }
+          /usr/libexec/PlistBuddy -c 'Print :CFBundleIconName' "$app/Contents/Info.plist"
 
       - name: Collect
         shell: bash

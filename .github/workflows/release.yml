@@ -224,6 +224,8 @@ jobs:
         run: |
           bundle=apps/desktop/src-tauri/target/${{ matrix.target }}/release/bundle
           app="$bundle/macos/Hydian.app"
+          [ -f "$app/Contents/Resources/Assets.car" ] || { echo 'The Liquid Glass app icon is missing.' >&2; exit 1; }
+          /usr/libexec/PlistBuddy -c 'Print :CFBundleIconName' "$app/Contents/Info.plist"
           codesign --verify --deep --strict "$app"
           team=$(codesign -dv --verbose=4 "$app" 2>&1 | sed -n 's/^TeamIdentifier=//p')
           [ "$team" = "$APPLE_TEAM_ID" ] || { echo 'Unexpected Apple signing team.' >&2; exit 1; }
