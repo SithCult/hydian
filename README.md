@@ -60,6 +60,10 @@ See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 The badges are from [Made by Human](https://github.com/JarlLyng/madebyhuman) (MIT).
 
+**Artists wanted.** We are looking for real, passionate artists to collaborate with on original artwork for Hydian:
+illustrations, emblems, portraits, anything that gives the app a soul of its own. If that sounds like you, write to
+hello@hydian.org. Your work will be credited, and you will have the final say on how it is used.
+
 ## Repository
 
 One monorepo, MIT licensed:
