@@ -4,3 +4,9 @@ allowBuilds:
   esbuild: true
   # Static Pages uploads do not need the local Workers runtime.
   workerd: false
+# Patched versions of transitive dependencies whose parents still pin vulnerable ones
+overrides:
+  compression: ^1.8.2
+  undici@7: ^7.30.1
+  eslint-plugin-react-hooks>zod: ^4.6.6
+  zod-validation-error>zod: ^4.6.6
