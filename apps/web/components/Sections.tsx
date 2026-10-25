@@ -243,13 +243,13 @@ export function Download() {
 export function Footer() {
   return (
     <footer className={s.footer}>
-      <ThemeSwitch />
       <p>
         Open source under the MIT licence, by{" "}
         <a href={SITE.github} target="_blank" rel="noopener noreferrer">
           SithCult
         </a>{" "}
         · <a href="/about">About &amp; contact</a> · <a href="/privacy">Privacy</a>
+        <ThemeSwitch />
       </p>
       <p className="fine">{SITE.disclaimer}</p>
     </footer>

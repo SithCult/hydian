@@ -7,25 +7,22 @@ const THEMES = [
   ["empire", "Crimson"],
 ] as const;
 
+// A quiet pair of dots at the end of the footer: a small easter egg rather than a setting.
 export function ThemeSwitch() {
   const { side, setSide } = useSide();
   return (
-    <div className={s.wrap}>
-      <span className={s.label}>Site colour</span>
-      <div className={s.switch} role="radiogroup" aria-label="Site colour">
-        {THEMES.map(([k, label]) => (
-          <button
-            key={k}
-            role="radio"
-            aria-checked={side === k}
-            className={`${s[k]} ${side === k ? s.on : ""}`}
-            onClick={() => setSide(k)}
-          >
-            <i aria-hidden />
-            {label}
-          </button>
-        ))}
-      </div>
-    </div>
+    <span className={s.switch} role="radiogroup" aria-label="Site colour">
+      {THEMES.map(([k, label]) => (
+        <button
+          key={k}
+          role="radio"
+          aria-checked={side === k}
+          aria-label={label}
+          title={label}
+          className={`${s[k]} ${side === k ? s.on : ""}`}
+          onClick={() => setSide(k)}
+        />
+      ))}
+    </span>
   );
 }
