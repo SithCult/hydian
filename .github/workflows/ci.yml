@@ -102,6 +102,13 @@ jobs:
         run: cargo test --locked --target ${{ matrix.target }}
         working-directory: apps/desktop/src-tauri
 
+      - name: Use Xcode 26 for the Liquid Glass app icon
+        if: runner.os == 'macOS'
+        run: |
+          xcode=$(ls -d /Applications/Xcode_26*.app | grep -vi beta | sort -V | tail -1)
+          [ -n "$xcode" ] || { echo 'Xcode 26 is required to compile the app icon.' >&2; exit 1; }
+          sudo xcode-select -s "$xcode"
+
       - name: Build the installer
         # plain installers: updater artifacts (and the signing key) are only needed by the release workflow
         shell: bash
@@ -110,6 +117,13 @@ jobs:
           --config '{"bundle":{"createUpdaterArtifacts":false}}'
         env:
           APPLE_SIGNING_IDENTITY: "-"
+
+      - name: Check the Liquid Glass app icon
+        if: runner.os == 'macOS'
+        run: |
+          app=apps/desktop/src-tauri/target/${{ matrix.target }}/release/bundle/macos/Hydian.app
+          [ -f "$app/Contents/Resources/Assets.car" ] || { echo 'The Liquid Glass app icon is missing.' >&2; exit 1; }
+          /usr/libexec/PlistBuddy -c 'Print :CFBundleIconName' "$app/Contents/Info.plist"
 
       - name: Collect
         shell: bash

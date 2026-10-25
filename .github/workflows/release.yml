@@ -188,6 +188,12 @@ jobs:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Use Xcode 26 for the Liquid Glass app icon
+        if: runner.os == 'macOS'
+        run: |
+          xcode=$(ls -d /Applications/Xcode_26*.app | grep -vi beta | sort -V | tail -1)
+          [ -n "$xcode" ] || { echo 'Xcode 26 is required to compile the app icon.' >&2; exit 1; }
+          sudo xcode-select -s "$xcode"
       - name: Bundle and upload draft assets
         uses: tauri-apps/tauri-action@1deb371b0cd8bd54025b384f1cd735e725c4060f # v1.0.0
         env:
@@ -224,6 +230,8 @@ jobs:
         run: |
           bundle=apps/desktop/src-tauri/target/${{ matrix.target }}/release/bundle
           app="$bundle/macos/Hydian.app"
+          [ -f "$app/Contents/Resources/Assets.car" ] || { echo 'The Liquid Glass app icon is missing.' >&2; exit 1; }
+          /usr/libexec/PlistBuddy -c 'Print :CFBundleIconName' "$app/Contents/Info.plist"
           codesign --verify --deep --strict "$app"
           team=$(codesign -dv --verbose=4 "$app" 2>&1 | sed -n 's/^TeamIdentifier=//p')
           [ "$team" = "$APPLE_TEAM_ID" ] || { echo 'Unexpected Apple signing team.' >&2; exit 1; }
