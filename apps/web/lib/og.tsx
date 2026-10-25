@@ -9,7 +9,9 @@ export const OG_SIZE = { width: 1200, height: 630 };
 const asset = (name: string) => readFile(join(process.cwd(), "assets/og", name));
 const dataUrl = async (name: string, type: string) => `data:${type};base64,${(await asset(name)).toString("base64")}`;
 
-export async function ogImage({ kicker, title, line }: { kicker: string; title: string; line: string }) {
+export type OgCard = { kicker: string; title: string; line: string };
+
+export async function ogImage({ kicker, title, line }: OgCard) {
   const [display, body, hud, photo, icon] = await Promise.all([
     asset("SpaceGrotesk-Bold.ttf"),
     asset("Inter-Regular.ttf"),

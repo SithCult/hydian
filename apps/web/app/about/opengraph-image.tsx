@@ -1,14 +1,16 @@
-import { OG_SIZE, ogImage } from "@/lib/og";
+import { OG_SIZE, ogImage, type OgCard } from "@/lib/og";
 
-export const alt = "The Hydian icon with the words: Bringing roleplay back into the open world.";
+const CARD: OgCard = {
+  kicker: "About Hydian",
+  title: "Bringing roleplay back into the open world.",
+  line: "Made by roleplayers who wanted to find each other outside the hotspots.",
+};
+
+export const alt = CARD.title;
 export const size = OG_SIZE;
 export const contentType = "image/png";
 export const dynamic = "force-static";
 
 export default function Image() {
-  return ogImage({
-    kicker: "About Hydian",
-    title: "Bringing roleplay back into the open world.",
-    line: "Made by roleplayers who wanted to find each other outside the hotspots.",
-  });
+  return ogImage(CARD);
 }

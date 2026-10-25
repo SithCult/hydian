@@ -13,9 +13,11 @@ const inter = Inter({ subsets: ["latin", "latin-ext"], variable: "--font-body", 
 const grotesk = Space_Grotesk({ subsets: ["latin", "latin-ext"], variable: "--font-display", display: "swap" });
 const mono = IBM_Plex_Mono({ subsets: ["latin"], weight: ["400", "500"], variable: "--font-hud", display: "swap" });
 
+const HOME_TITLE = `${SITE.name}: where roleplay is happening in SWTOR`;
+
 export const metadata: Metadata = {
   metadataBase: new URL(SITE.url),
-  title: { default: `${SITE.name}: where roleplay is happening in SWTOR`, template: `%s · ${SITE.name}` },
+  title: { default: HOME_TITLE, template: `%s · ${SITE.name}` },
   description: SITE.description,
   applicationName: SITE.name,
   authors: [{ name: "SithCult", url: SITE.github }],
@@ -23,13 +25,13 @@ export const metadata: Metadata = {
   alternates: { canonical: "/" },
   openGraph: {
     ...OG_BASE,
-    title: `${SITE.name}: where roleplay is happening in SWTOR`,
+    title: HOME_TITLE,
     description: SITE.description,
     url: "/",
   },
   twitter: {
     card: "summary_large_image",
-    title: `${SITE.name}: where roleplay is happening in SWTOR`,
+    title: HOME_TITLE,
     description: SITE.description,
   },
   icons: {
