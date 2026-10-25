@@ -1,5 +1,5 @@
 "use client";
-// Republic or Empire: recolours the whole site through the data-side attribute. Remembered per browser.
+// Light side (gold) or dark side (crimson): recolours the whole site through the data-side attribute. Remembered per browser.
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import type { Side } from "./site";
 

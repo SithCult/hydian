@@ -38,7 +38,7 @@ export default function Privacy() {
           overlay checks locally whether SWTOR is running.
         </p>
         <p>
-          The website saves your Republic or Empire preference in your browser. You can clear this preference through
+          The website saves your light side or dark side theme preference in your browser. You can clear this preference through
           your browser&apos;s site-data settings.
         </p>
 

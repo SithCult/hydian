@@ -1,6 +1,4 @@
-"use client";
 import Link from "next/link";
-import { useSide } from "@/lib/side";
 import { Mark } from "./Mark";
 import s from "./Nav.module.css";
 
@@ -15,7 +13,6 @@ const LINKS = [
 ] as const;
 
 export function Nav() {
-  const { side, setSide } = useSide();
   return (
     <header className={s.top}>
       <Link className={s.brand} href="/">
@@ -29,13 +26,6 @@ export function Nav() {
           </Link>
         ))}
       </nav>
-      <div className={s.side} role="group" aria-label="Choose your side">
-        {(["republic", "empire"] as const).map((k) => (
-          <button key={k} className={side === k ? s.on : ""} onClick={() => setSide(k)}>
-            {k}
-          </button>
-        ))}
-      </div>
       <Link className="btn primary small" href="/download">
         Download
       </Link>

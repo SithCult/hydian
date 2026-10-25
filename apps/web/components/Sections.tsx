@@ -3,6 +3,7 @@ import { GitHubLogo } from "./OsLogos";
 import { PlatformDownloadLinks } from "./PlatformDownloadLinks";
 import { Reveal } from "./Reveal";
 import s from "./Sections.module.css";
+import { ThemeSwitch } from "./ThemeSwitch";
 
 export function DataReadout() {
   return (
@@ -242,6 +243,7 @@ export function Download() {
 export function Footer() {
   return (
     <footer className={s.footer}>
+      <ThemeSwitch />
       <p>
         Open source under the MIT licence, by{" "}
         <a href={SITE.github} target="_blank" rel="noopener noreferrer">
