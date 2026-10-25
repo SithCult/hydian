@@ -81,7 +81,7 @@ function demoScreen(): Partial<Pick<AppState, "view" | "modal">> {
   const view = q.get("view");
   const modal = q.get("modal");
   const out: Partial<Pick<AppState, "view" | "modal">> = {};
-  if (view === "map" || view === "registry" || view === "journal") out.view = view;
+  if (view === "map" || view === "registry" || view === "journal" || view === "tools") out.view = view;
   if (modal === "settings" || modal === "characters" || modal === "offboard" || modal === "notice")
     out.modal = { kind: modal };
   else if (modal === "profile") out.modal = { kind: "profile", key: `${SERVER}:${idOf("Ysolde Marr")}` };

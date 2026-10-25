@@ -155,7 +155,7 @@ export function Sidebar() {
   );
 }
 
-function UserPanel() {
+export function UserPanel() {
   const me = useApp(selectMe);
   const link = useApp((s) => s.link);
   const live = useApp((s) => s.live);

@@ -15,5 +15,5 @@ Otherwise write "Not applicable" and a short reason. -->
 ## Checklist
 
 - [ ] Relevant checks pass; failures or gaps are explained above
-- [ ] Game files remain read-only, notes/journal stay local, and no secrets or personal data are included
+- [ ] Game files are only read (the chat colour line excepted), notes/journal stay local, and no secrets or personal data are included
 - [ ] Changed UI/workflows are exercised and visual proof is attached, or marked not applicable
