@@ -60,7 +60,7 @@ jobs:
             bundles: nsis
             ext: exe
           - name: macOS Apple Silicon
-            os: macos-latest
+            os: xcode-27
             target: aarch64-apple-darwin
             bundles: dmg
             ext: dmg
