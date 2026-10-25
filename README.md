@@ -36,10 +36,16 @@ Others see a name, a faction, a status and a place. Profiles have no free text a
 **Now:** Windows and macOS (Apple Silicon and Intel), live map, registry, overlay, friends, notes, journal, heat
 map and activity, automatic updates.
 
-**Next:** more planets and interiors, localisation.
+**Next:** more planets and interiors, localisation, and the community layer:
 
-**With enough support:** verified characters and optional accounts, a guild registry, guild tools (rosters, events,
-recruitment) and a Discord integration that posts who is in character to your server. All in this repository.
+- **Accounts:** optional, and you sign in with Discord. No new password to remember.
+- **Verified characters:** prove a character is yours with a quick whisper in game.
+- **Character profiles:** biographies and more for verified characters, so your story travels with your name.
+- **Events:** plan, announce and find roleplay events across the galaxy.
+- **Guilds:** a guild registry with tools for rosters, events and recruitment.
+
+**With enough support:** a Discord integration that posts who is in character to your server. All in this
+repository.
 
 ## How it is made
 
@@ -53,6 +59,10 @@ a pull request is welcome when it is understood, tested and written with care, w
 See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 The badges are from [Made by Human](https://github.com/JarlLyng/madebyhuman) (MIT).
+
+**Artists wanted.** We are looking for real, passionate artists to collaborate with on original artwork for Hydian:
+illustrations, emblems, portraits, anything that gives the app a soul of its own. If that sounds like you, write to
+hello@hydian.org. Your work will be credited, and you will have the final say on how it is used.
 
 ## Repository
 

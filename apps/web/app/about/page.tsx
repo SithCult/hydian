@@ -100,6 +100,12 @@ export default function About() {
       <Reveal delay={0.1} className={s.prose}>
         <h2>How it is made</h2>
         <Plaque />
+        <p>
+          We are looking for real, passionate artists to collaborate with on original artwork for Hydian: illustrations,
+          emblems, portraits, anything that gives the app a soul of its own. If that sounds like you, write to{" "}
+          <a href="mailto:hello@hydian.org">hello@hydian.org</a>. Your work will be credited, and you keep the final say
+          on how it is used.
+        </p>
       </Reveal>
     </main>
   );

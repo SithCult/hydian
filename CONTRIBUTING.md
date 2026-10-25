@@ -71,3 +71,10 @@ native app verification. Explain any unavailable check; for non-visual changes, 
 Maps, planet icons and faction emblems are BioWare/EA/Lucasfilm artwork from the game client. The repository holds
 neither the artwork nor the conversion; see [GAME-CONTENT.md](GAME-CONTENT.md). Do not commit images from the game,
 and keep the tiles service's `NOTICE.txt` current.
+
+## Artists
+
+We are looking to collaborate with real, passionate artists on original artwork for Hydian: illustrations, emblems,
+portraits and anything else that gives the app a look of its own. If you draw, paint or design and love this game as
+much as we do, write to hello@hydian.org with a few pieces you are proud of. Every work is credited to its artist, and
+you keep the final say on how it is used.
