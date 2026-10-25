@@ -1,67 +1,83 @@
-// Why it exists, as a picture: other games hand addons everything; this one writes a log line, and Hydian turns
-// the line into the map. The log line types itself out and the outputs light up, on a loop.
+"use client";
+// Why it exists, as a conversation: a newcomer and a regular explain it to each other in the game's own chat, the
+// way it actually gets explained in cantinas every week. Lines arrive one by one as the window scrolls into view.
+import { motion } from "motion/react";
 import { Reveal } from "./Reveal";
 import s from "./Why.module.css";
 
-const LINE = "[22:41:07] [@Vashti Arano] [Nar Shaddaa: Lower Promenade] (-953, -919)";
+type Line = { who: string; kind: "say" | "emote"; text: string };
+
+const CHAT: Line[] = [
+  { who: "Ysolde Marr", kind: "say", text: "In my old game an addon showed who was in character. Where is that here?" },
+  { who: "Talyn Ressk", kind: "say", text: "There isn't one. This game doesn't let addons in." },
+  { who: "Ysolde Marr", kind: "say", text: "Then how did you find all these people?" },
+  {
+    who: "Talyn Ressk",
+    kind: "say",
+    text: "The game writes a text file on your computer. Where you are, what you're up to, line by line.",
+  },
+  {
+    who: "Talyn Ressk",
+    kind: "say",
+    text: "Hydian reads it and puts everyone who shares on a map. That's how I saw you.",
+  },
+  { who: "Ysolde Marr", kind: "emote", text: "pulls up a stool and opens Hydian." },
+];
 
 export function Why() {
   return (
     <section id="why" className={s.wrap}>
-      <Reveal className="section-head">
-        <div className="section-label">
-          <span>B</span>
-          <p>Why it exists</p>
-        </div>
-        <h2>Roleplayers in other games have addons. We have a text file.</h2>
-        <p className={s.lead}>
-          In World of Warcraft an addon can show you who is in character and where, because the game lets addons in. The
-          Old Republic lets nothing in. The one thing it gives you is a combat log on your own hard drive. Hydian reads
-          that log and turns it into what an addon would have shown you.
-        </p>
-      </Reveal>
-      <div className={s.grid}>
-        <Reveal className={s.other}>
-          <p className="hud dim">Other games</p>
-          <div className={s.socket} aria-hidden>
-            <div className={s.window}>
-              <i />
-              <i />
-              <i />
-            </div>
-            <div className={s.plugs}>
-              <span>profiles</span>
-              <span>status</span>
-              <span>who is IC</span>
-            </div>
+      <div className={s.cols}>
+        <Reveal className={s.copy}>
+          <div className="section-label">
+            <span>B</span>
+            <p>Why it exists</p>
           </div>
-          <p>Elsewhere, addons plug straight into the game and get told everything.</p>
+          <h2>Roleplayers in other games have addons. We have a text file.</h2>
+          <p className={s.lead}>
+            It&apos;s the question every newcomer asks. Here is the answer, the way it usually gets told: over a drink,
+            in the game.
+          </p>
+          <p className={s.small}>
+            The file never says which instance you&apos;re in, so you set that yourself. Everything else, Hydian reads
+            for you.
+          </p>
         </Reveal>
 
-        <Reveal className={s.here} delay={0.1}>
-          <p className="hud">The Old Republic</p>
-          <div className={s.pipe} aria-hidden>
-            <div className={s.log}>
-              <span className={s.file}>combat_2026-09-19.txt</span>
-              <code className={s.typed}>{LINE}</code>
-            </div>
-            <div className={s.arrow}>
-              <i />
-              <i />
-              <i />
-            </div>
-            <div className={s.outs}>
-              <span className={s.o1}>live map</span>
-              <span className={s.o2}>registry</span>
-              <span className={s.o3}>overlay</span>
-            </div>
+        <Reveal className={s.chat} delay={0.1}>
+          <div className={s.tabs} aria-hidden>
+            <span className={s.on}>Voss</span>
+            <span>Guild</span>
+            <span>Whispers</span>
           </div>
-          <p>Here, the game writes one line per event. Hydian reads it and builds the rest.</p>
+          <ol className={s.log}>
+            {CHAT.map((l, i) => (
+              <motion.li
+                key={i}
+                className={l.kind === "emote" ? s.emote : s.say}
+                initial={{ opacity: 0, y: 6 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.4, delay: 0.5 + i * 0.9, ease: [0.2, 0.8, 0.2, 1] }}
+              >
+                {l.kind === "emote" ? (
+                  <>
+                    <span className={s.who}>{l.who}</span> {l.text}
+                  </>
+                ) : (
+                  <>
+                    <span className={s.who}>{l.who}</span> says: {l.text}
+                  </>
+                )}
+              </motion.li>
+            ))}
+          </ol>
+          <div className={s.input} aria-hidden>
+            <span>/say</span>
+            <i />
+          </div>
         </Reveal>
       </div>
-      <Reveal className={s.foot} delay={0.2}>
-        One thing the log never says is your server instance, so you set that by hand. Everything it does say, you get.
-      </Reveal>
     </section>
   );
 }
