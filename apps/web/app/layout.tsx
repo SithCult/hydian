@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { IBM_Plex_Mono, Inter, Space_Grotesk } from "next/font/google";
 import type { ReactNode } from "react";
+import { OG_BASE } from "@/lib/meta";
 import { SITE } from "@/lib/site";
 import { SideProvider } from "@/lib/side";
 import { Starfield } from "@/components/Starfield";
@@ -12,31 +13,27 @@ const inter = Inter({ subsets: ["latin", "latin-ext"], variable: "--font-body", 
 const grotesk = Space_Grotesk({ subsets: ["latin", "latin-ext"], variable: "--font-display", display: "swap" });
 const mono = IBM_Plex_Mono({ subsets: ["latin"], weight: ["400", "500"], variable: "--font-hud", display: "swap" });
 
+const HOME_TITLE = `${SITE.name}: where roleplay is happening in SWTOR`;
+
 export const metadata: Metadata = {
   metadataBase: new URL(SITE.url),
-  title: { default: `${SITE.name}: where roleplay is happening in SWTOR`, template: `%s · ${SITE.name}` },
+  title: { default: HOME_TITLE, template: `%s · ${SITE.name}` },
   description: SITE.description,
   applicationName: SITE.name,
   authors: [{ name: "SithCult", url: SITE.github }],
   keywords: ["SWTOR", "Star Wars: The Old Republic", "roleplay", "RP", "map", "companion app", "overlay"],
   alternates: { canonical: "/" },
   openGraph: {
-    type: "website",
-    siteName: SITE.name,
-    title: `${SITE.name}: where roleplay is happening in SWTOR`,
-    description: SITE.tagline + " Free and open source.",
-    url: SITE.url,
-    locale: "en_US",
-    images: [
-      {
-        url: "/og.png",
-        width: 1200,
-        height: 630,
-        alt: "The Hydian icon next to the words: See where roleplay is happening.",
-      },
-    ],
+    ...OG_BASE,
+    title: HOME_TITLE,
+    description: SITE.description,
+    url: "/",
   },
-  twitter: { card: "summary_large_image", title: SITE.name, description: SITE.tagline, images: ["/og.png"] },
+  twitter: {
+    card: "summary_large_image",
+    title: HOME_TITLE,
+    description: SITE.description,
+  },
   icons: {
     icon: [
       { url: "/favicon.svg", type: "image/svg+xml" },
@@ -62,7 +59,7 @@ const jsonLd = {
       offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
       license: "https://opensource.org/licenses/MIT",
       description: SITE.description,
-      image: `${SITE.url}/og.png`,
+      image: `${SITE.url}/opengraph-image`,
       author: { "@type": "Organization", name: "SithCult", url: SITE.github },
     },
     {

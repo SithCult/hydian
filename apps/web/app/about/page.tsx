@@ -1,14 +1,11 @@
 import type { Metadata } from "next";
+import { pageMeta } from "@/lib/meta";
 import { Reveal } from "@/components/Reveal";
 import { Plaque } from "@/components/Plaque";
 import { SITE } from "@/lib/site";
 import s from "../page.module.css";
 
-export const metadata: Metadata = {
-  title: "About",
-  description: "Why Hydian exists, who makes it and how to reach us.",
-  alternates: { canonical: "/about" },
-};
+export const metadata: Metadata = pageMeta("About", "Why Hydian exists, who makes it and how to reach us.", "/about");
 
 const CONTACT = [
   ["General", "hello@hydian.org"],

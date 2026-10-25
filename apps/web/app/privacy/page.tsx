@@ -1,12 +1,13 @@
 import type { Metadata } from "next";
+import { pageMeta } from "@/lib/meta";
 import { Reveal } from "@/components/Reveal";
 import s from "../page.module.css";
 
-export const metadata: Metadata = {
-  title: "Privacy",
-  description: "How Hydian uses gameplay information and the choices available to you.",
-  alternates: { canonical: "/privacy" },
-};
+export const metadata: Metadata = pageMeta(
+  "Privacy",
+  "How Hydian uses gameplay information and the choices available to you.",
+  "/privacy",
+);
 
 export default function Privacy() {
   return (
@@ -38,8 +39,8 @@ export default function Privacy() {
           overlay checks locally whether SWTOR is running.
         </p>
         <p>
-          The website saves your Republic or Empire preference in your browser. You can clear this preference through
-          your browser&apos;s site-data settings.
+          The website saves your gold or crimson colour preference in your browser. You can clear this preference
+          through your browser&apos;s site-data settings.
         </p>
 
         <h2>Information shared with Hydian</h2>
